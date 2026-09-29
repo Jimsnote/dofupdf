@@ -32,7 +32,8 @@ export type ToolSlug =
   | 'pdf-to-markdown'
   | 'sign-pdf'
   | 'qr-code'
-  | 'ocr-pdf';
+  | 'ocr-pdf'
+  | 'receipt-sheet';
 
 interface ToolPageScaffoldProps {
   locale: Locale;

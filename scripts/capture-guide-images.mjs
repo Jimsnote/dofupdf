@@ -1,8 +1,8 @@
 /**
- * Captures guide screenshots for all 12 tools with Playwright:
+ * Captures guide screenshots for the tools listed below with Playwright:
  * generates sample files, serves ./out statically, uploads samples into each
  * tool, processes them, and saves step-1/step-2 screenshots to
- * public/guides/<guide>/. Run: node scripts/capture-guide-images.mjs
+ * public/guides/<guide>/. Run: node scripts/capture-guide-images.mjs [tool…]
  * (requires `npm run build` first and `npx playwright install chromium`).
  */
 import { chromium } from 'playwright';
@@ -11,7 +11,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, extname, resolve } from 'node:path';
 import zlib from 'node:zlib';
-import { PDFDocument, rgb, StandardFonts } from '@cantoo/pdf-lib';
+import { PDFDocument, StandardFonts, degrees, rgb } from '@cantoo/pdf-lib';
 
 const OUT = resolve('out');
 const DEST = resolve('public/guides');
@@ -122,6 +122,53 @@ async function makePdf(name, pageCount, label) {
   return join(TMP, name);
 }
 
+/**
+ * Receipt-sheet samples: three genuinely different shapes, because the point of
+ * that tool is mixed sizes on one A4 sheet — two A4 statement pages, a narrow
+ * shop receipt, and a landscape scan stored as a portrait box carrying /Rotate.
+ */
+async function makeReceiptSamples() {
+  const invoice = await PDFDocument.create();
+  const bold = await invoice.embedFont(StandardFonts.HelveticaBold);
+  const plain = await invoice.embedFont(StandardFonts.Helvetica);
+  for (let i = 0; i < 2; i += 1) {
+    const page = invoice.addPage([595, 842]);
+    page.drawRectangle({ x: 40, y: 40, width: 515, height: 762, color: rgb(1, 1, 1), borderColor: rgb(0.8, 0.82, 0.86) });
+    page.drawText('INVOICE 2026-0' + (i + 1), { x: 66, y: 740, size: 22, font: bold, color: rgb(0.15, 0.2, 0.4) });
+    page.drawText('DofuPDF sample — Office Supplies Co., Ltd.', { x: 66, y: 706, size: 12, font: plain });
+    for (let line = 0; line < 9; line += 1) {
+      page.drawLine({ start: { x: 66, y: 660 - line * 34 }, end: { x: 520, y: 660 - line * 34 }, thickness: 1, color: rgb(0.86, 0.88, 0.92) });
+    }
+    page.drawText('TOTAL  12,840 JPY', { x: 330, y: 120, size: 14, font: bold, color: rgb(0.15, 0.2, 0.4) });
+  }
+  const invoicePath = join(TMP, 'receipt-invoice.pdf');
+  await writeFile(invoicePath, await invoice.save());
+
+  const long = await PDFDocument.create();
+  const longFont = await long.embedFont(StandardFonts.Helvetica);
+  const longPage = long.addPage([227, 567]); // 80 x 200 mm shop receipt
+  longPage.drawRectangle({ x: 6, y: 6, width: 215, height: 555, color: rgb(1, 1, 1), borderColor: rgb(0.82, 0.82, 0.82) });
+  longPage.drawText('RECEIPT', { x: 62, y: 520, size: 14, font: await long.embedFont(StandardFonts.HelveticaBold) });
+  for (let line = 0; line < 12; line += 1) {
+    longPage.drawText('item ' + (line + 1) + '        420', { x: 24, y: 480 - line * 30, size: 10, font: longFont });
+  }
+  const longPath = join(TMP, 'receipt-long.pdf');
+  await writeFile(longPath, await long.save());
+
+  const scan = await PDFDocument.create();
+  const scanFont = await scan.embedFont(StandardFonts.HelveticaBold);
+  const scanPage = scan.addPage([595, 842]);
+  // Written turned 90 degrees inside a portrait box and tagged /Rotate 90 — the
+  // way scanners store a landscape original.
+  scanPage.drawText('SCANNED LANDSCAPE SLIP', { x: 250, y: 60, size: 20, font: scanFont, rotate: degrees(90) });
+  scanPage.drawRectangle({ x: 40, y: 40, width: 515, height: 762, borderColor: rgb(0.75, 0.75, 0.75), borderWidth: 1 });
+  scanPage.setRotation(degrees(90));
+  const scanPath = join(TMP, 'receipt-scan.pdf');
+  await writeFile(scanPath, await scan.save());
+
+  return { invoicePath, longPath, scanPath };
+}
+
 /** Encrypted sample via qpdf (locateFile to the package wasm — the proven path). */
 async function makeProtectedPdf(sourcePath) {
   const { createRequire } = await import('node:module');
@@ -185,9 +232,12 @@ function serve() {
 
 const READY = '準備ができました';
 
-async function shot(page, guide, step, note) {
+async function shot(page, guide, step, note, focus) {
   const ready = page.getByText(READY);
-  if (await ready.count()) await ready.first().scrollIntoViewIfNeeded();
+  if (focus) {
+    // pin the bottom of the focused block, so the controls above it stay in frame
+    await focus.evaluate((el) => el.scrollIntoView({ block: 'end', behavior: 'instant' }));
+  } else if (await ready.count()) await ready.first().scrollIntoViewIfNeeded();
   else await page.locator('h1').first().scrollIntoViewIfNeeded();
   await page.waitForTimeout(350);
   const dir = join(DEST, guide);
@@ -207,6 +257,16 @@ async function processAndWait(page, buttonText, resultName, timeoutMs = 90000) {
   await page.getByText(READY).waitFor({ timeout: timeoutMs });
   if (resultName) await page.getByText(resultName).first().waitFor({ timeout: 10000 });
   await page.waitForTimeout(400);
+}
+
+/**
+ * Click an option through its <label>. The per-page chips hide the radio itself
+ * behind `sr-only`, where Playwright's hit-testing stalls on the 1px box, while
+ * the visible label forwards the activation to the input.
+ */
+async function pickLabel(page, text) {
+  await page.locator('label').filter({ hasText: text }).first().click();
+  await page.waitForTimeout(150);
 }
 
 const scenarios = (s) => [
@@ -282,11 +342,42 @@ const scenarios = (s) => [
       ['step-2', async (p) => processAndWait(p, 'Markdownに変換', 'download.md'), 'download card'],
     ],
   },
+  {
+    tool: 'receipt-sheet', guide: 'how-to-print-receipts-on-one-a4', steps: [
+      [
+        'step-1',
+        async (p) => {
+          await upload(p, [s.receipt.invoicePath, s.receipt.longPath, s.receipt.scanPath]);
+          await pickLabel(p, '4枚');
+          await pickLabel(p, '20mm（2穴ファイル）');
+          await pickLabel(p, '切り取りガイド線をつける');
+          // the preview re-measures once the pages are read
+          await p.getByText('1枚目のA4用紙の並び方です。').waitFor({ timeout: 30000 });
+          // a taller frame so the chips and the preview land in one picture
+          await p.setViewportSize({ width: 1120, height: 1000 });
+          await p.waitForTimeout(400);
+        },
+        'four per sheet, binding margin and guides picked, layout preview visible',
+        (p) => p.locator('figure').first(),
+      ],
+      [
+        'step-2',
+        async (p) => {
+          await p.setViewportSize({ width: 1120, height: 780 });
+          await processAndWait(p, 'A4にまとめる', 'receipts-a4.pdf');
+        },
+        'download card',
+      ],
+    ],
+  },
 ];
 
 // ---------- main ----------
 
 await mkdir(TMP, { recursive: true });
+// `node scripts/capture-guide-images.mjs [tool…]` limits the run to the given
+// tool slugs, so one guide can be re-shot without replaying every scenario.
+const ONLY = process.argv.slice(2);
 const samples = {
   pdfA: await makePdf('sample-a.pdf', 4, 'Annual Report'),
   pdfB: await makePdf('sample-b.pdf', 2, 'Contract'),
@@ -299,7 +390,10 @@ await writeFile(samples.photo2, solidPng(600, 900, [236, 140, 105]));
 const scanImage = join(TMP, 'scan-page.png');
 await writeFile(scanImage, noisePng(1600, 2000));
 samples.pdfBig = await makeImagePdf('sample-big.pdf', 3, scanImage);
-samples.protectedPdf = await makeProtectedPdf(samples.pdfB);
+samples.receipt = await makeReceiptSamples();
+if (ONLY.length === 0 || ONLY.includes('unlock-pdf')) {
+  samples.protectedPdf = await makeProtectedPdf(samples.pdfB);
+}
 
 const server = await serve();
 const browser = await chromium.launch();
@@ -308,16 +402,19 @@ page.on('pageerror', () => {});
 
 let failures = 0;
 for (const sc of scenarios(samples)) {
+  if (ONLY.length > 0 && !ONLY.includes(sc.tool)) continue;
   console.log(`▶ ${sc.tool}`);
   try {
     await page.goto(`http://localhost:${PORT}/${sc.tool}/`, { waitUntil: 'networkidle' });
-    for (const [step, action, note] of sc.steps) {
+    for (const [step, action, note, focus] of sc.steps) {
       await action(page);
-      await shot(page, sc.guide, step, note);
+      await shot(page, sc.guide, step, note, focus ? focus(page) : undefined);
     }
   } catch (err) {
     failures += 1;
-    console.error(`  ✗ ${sc.tool} failed: ${String(err).split('\n')[0]}`);
+    // console.log, not console.error: PowerShell turns stderr into a
+    // NativeCommandError and drops the locator diagnostic that matters here.
+    console.log(`  ✗ ${sc.tool} failed:\n${(err && err.stack) || String(err)}`);
   }
 }
 

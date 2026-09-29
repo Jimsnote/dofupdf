@@ -14,7 +14,7 @@ Don't take our word for it: disconnect from the internet after a page loads and 
 
 ## Tools
 
-All 22 tools run 100% locally in your browser — no uploads, no sign-up, free forever:
+All 23 tools run 100% locally in your browser — no uploads, no sign-up, free forever:
 
 - **Merge PDF** — combine multiple PDFs into a single file, in the order you want
 - **Split PDF** — extract a page range or split one PDF into separate documents
@@ -38,6 +38,7 @@ All 22 tools run 100% locally in your browser — no uploads, no sign-up, free f
 - **Excel to Markdown** — turn spreadsheet sheets into Markdown tables
 - **QR Code** — generate QR codes entirely offline
 - **OCR PDF** — recognize text in scanned PDFs with Tesseract (English + Japanese)
+- **Receipt Sheet (領収書まとめ印刷)** — lay out many receipt/invoice PDF pages on a single A4 sheet for printing, with margins, a binding allowance and optional cut guides
 
 ## Tech stack
 
@@ -73,7 +74,7 @@ npm run type-check # tsc --noEmit
 ```
 src/
 ├── app/(ja)/               # all routes (root path, Japanese): layout, home, about/privacy/terms/faq,
-│                           # 22 tool pages, guides/, compare/
+│                           # 23 tool pages, guides/, compare/
 ├── app/sitemap.ts          # derived from the live tools in lib/tools.ts — no hardcoding
 ├── app/robots.ts           # allow all + explicit AI-crawler rules
 ├── components/
@@ -89,8 +90,8 @@ src/
 ├── lib/
 │   ├── site.ts             # SITE_NAME / SITE_URL / GITHUB_URL / CONTACT_EMAIL (env-overridable)
 │   ├── seo.ts              # buildAlternates(), pageMetadata()
-│   ├── tools.ts            # tool registry (22 tools, status flags)
-│   ├── guides/             # tutorial content system (17 guides, one data file each)
+│   ├── tools.ts            # tool registry (23 tools, status flags)
+│   ├── guides/             # tutorial content system (18 guides, one data file each)
 │   ├── compare/            # competitor comparison pages (dofupdf-vs-ilovepdf / -smallpdf / -sejda)
 │   └── pdf/                # pure processing layer (React-free, testable in Node)
 └── workers/                # Web Workers for heavy wasm engines

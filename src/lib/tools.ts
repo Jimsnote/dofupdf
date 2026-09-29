@@ -12,6 +12,7 @@ import {
   LockOpen,
   Merge,
   Minimize2,
+  Printer,
   RotateCw,
   Scissors,
   Stamp,
@@ -62,6 +63,7 @@ export const tools: Tool[] = [
   { slug: 'pdf-to-markdown', icon: FileText, i18nKey: 'pdf-to-markdown', status: 'live' },
   { slug: 'qr-code', icon: QrCode, i18nKey: 'qr-code', status: 'live' },
   { slug: 'ocr-pdf', icon: ScanText, i18nKey: 'ocr-pdf', status: 'live' },
+  { slug: 'receipt-sheet', icon: Printer, i18nKey: 'receipt-sheet', status: 'live' },
 ];
 
 /** Live tools, derived from the central registry. */

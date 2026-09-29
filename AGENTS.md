@@ -9,7 +9,7 @@
 
 ## 1. 项目一句话
 
-DofuPDF（品牌沿革：CoolPDF → CPdf → NoriPDF → DofuPDF；2026-09 起转向**日本市场**，与 coolpdf / noripdf 及其旧域名**再无任何关联**）是**面向日本用户的纯浏览器端 PDF 工具站**（类 ilovepdf.com），**零后端**：全部 22 个工具的处理都在浏览器（JS/WASM/Web Worker）完成。核心卖点三支柱（日语固定术语见 `ja.ts`，此处不转写避免错字）：**无上传（文件永不离开设备）/ 免注册 / 永久免费**。变现目标 Google AdSense（未接入，接入清单见 `docs/TODO.md`）。
+DofuPDF（品牌沿革：CoolPDF → CPdf → NoriPDF → DofuPDF；2026-09 起转向**日本市场**，与 coolpdf / noripdf 及其旧域名**再无任何关联**）是**面向日本用户的纯浏览器端 PDF 工具站**（类 ilovepdf.com），**零后端**：全部 23 个工具的处理都在浏览器（JS/WASM/Web Worker）完成。核心卖点三支柱（日语固定术语见 `ja.ts`，此处不转写避免错字）：**无上传（文件永不离开设备）/ 免注册 / 永久免费**。变现目标 Google AdSense（未接入，接入清单见 `docs/TODO.md`）。
 
 - **线上**：https://dofupdf.com（Cloudflare Workers Static Assets；www 计划 301 到主域）
 - **仓库**：默认指向 `https://github.com/Jimsnote/dofupdf`（**新仓库由站主另行建立**，代码保留 env 覆盖；AGPL-3.0——因压缩用 Ghostscript WASM）
@@ -33,18 +33,20 @@ DofuPDF（品牌沿革：CoolPDF → CPdf → NoriPDF → DofuPDF；2026-09 起�
 3. **范围输入已做归一化**（`src/lib/pdf/page-ranges.ts`）：中文逗号/顿号/分号、全角破折号/数字、尾随逗号容错。不要绕过 `normalizeRangeInput`。
 4. **工具组件处理开始时必须 `setResult(null)`**：否则处理失败后旧结果卡残留，用户会下载到上一个任务的文件（真实事故）。
 5. **jpg-to-pdf 的 EXIF 方向**：必须经 `src/lib/pdf/image-orientation.ts` 矫正，否则手机竖拍照片侧躺 90°。
-6. **route group 现为单根 `(ja)/`**；`src/app/` 根下只剩 sitemap.ts/robots.ts/global-not-found.tsx/icon.svg/globals.css。移动页面目录后必须重启 dev server 并删 `.next`（stale 的 `.next/types/validator.ts` 会让 type-check 报已删除路由的错）。
+6. **route group 现为单根 `(ja)/`**；`src/app/` 根下只剩 sitemap.ts/robots.ts/global-not-found.tsx/icon.svg/globals.css。移动页面目录后必须重启 dev server 并删 `.next`（stale 的 `.next/types/validator.ts` 会让 type-check 报已删除路由的错）。**dev 跑着时绝不可并发 `npm run build`**：build 覆写 `.next`，全站会不水合（`main-app.js` 404，页面变静态壳），build 后回到 dev 也是坏状态——正确顺序是先杀 dev（`netstat -ano` 拿 3000 端口的 PID；sandbox 下 `Get-NetTCPConnection` 常常查不到），再 build，然后删 `.next` 重启 dev。
 7. **sitemap.ts/robots.ts 需 `export const dynamic = 'force-static'`**（Next 15 静态导出要求）。
 8. **TS 5.7+ 的 `Uint8Array` 不能直接赋给 `BlobPart`**——统一用 `src/components/tools/blob.ts` 的 `pdfBlob()`。
 9. **Windows + Node 22 特有**：postcss.config.js 必须 CommonJS；不用 next/font/google（用系统字体栈）；Node 下跑 pdf.js 测试需 DOMMatrix 等 polyfill（仅测试环境）。
 10. **Cloudflare 控制台已无独立 Pages 流程**（并入 Workers）：没有 `wrangler.jsonc` 时 wrangler 会自动套 OpenNext 全栈适配器，静态导出项目必崩。`wrangler.jsonc` 不可删。
 11. **AI 生成日语正文极易混入其它语种 token**（本仓实测：英语 Among/often、韩语 잘/많/본 泄漏进译文）——每写完一篇必须过 `scripts/_qa.mjs` 扫描（见 §5）。
+12. **`@cantoo/pdf-lib` 的 `embedPdf` 有三个 silent 坑**（`src/lib/pdf/receipt-sheet.ts` 实测踩过）：① 页面嵌入器完全不读源页 `/Rotate`，方向必须由调用方自己读取并施加，**而且要把符号取反**：`/Rotate` 是阅读器**顺时针**旋转，pdf-lib 的 `rotate`/`degrees()` 是**逆时针**，直接用 `degrees(rotation)` 会把扫描件排成上下颠倒 180°（已在 Chrome 阅读器对照实测佐证）——正确写法是 `angle = (360 - rotation) % 360`；② `drawPage` 的算子序列是 `translate → rotate → scale`，即**绕 (x, y) 原点旋转**而非绕中心，想按中心摆放必须反解原点（与 `watermark.ts` 的 `drawStampCentered` 同一套公式）；③ 无 `/Contents` 的空白页只在 `save()` 真正构建 XObject 时才抛 `MissingPageContentsEmbeddingError`，用 try/catch 包住 `embedPdf` 无效——必须在嵌入前用 `page.node.normalizedEntries().Contents` 预检，缺内容流的页先 `pushOperators(pushGraphicsState(), popGraphicsState())` 补一条合法空流。另外，逐页调 `embedPage` 会每页新建 `PDFObjectCopier`，共享字体/图片被重复拷贝导致输出膨胀，**每个源文档只做一次批量 `embedPdf`**。
+13. **pdf-lib `save()` 会 deflate 压缩内容流**，因此“拉出字节 grep `cm` 矩阵”验证旋转方向这条路走不通（本次实测 grep 命中 0）——方向类正确性只能在浏览器里跟 Chrome 阅读器对照，或者读渲染后的 DOM/SVG 几何值。反过来，**预览图不要自己另算一套几何**：`receipt-sheet` 的预览直接用引擎的 `sheetCells()` + `computePlacements()` 画 SVG，数字与成品同源，天然不会出现“预览好看、成品走样”（已逐点比对，误差 <0.01pt）。
 
 ## 4. 代码结构速查
 
 ```
 src/
-├── app/(ja)/            # 全部页面（根路径，日语）：layout/not-found + 5 内容页 + 22 工具页 + guides/compare
+├── app/(ja)/            # 全部页面（根路径，日语）：layout/not-found + 5 内容页 + 23 工具页 + guides/compare
 ├── app/sitemap.ts       # 由 tools.ts 的 live 工具派生，勿硬编码；无 lastmod（刻意）
 ├── app/robots.ts        # 放行 AI 爬虫（GPTBot/ClaudeBot/PerplexityBot 等）
 ├── components/
@@ -57,8 +59,8 @@ src/
 ├── i18n/locales/ja.ts   # 唯一字典，**Dictionary 类型源头**（`export type Dictionary = typeof ja`，结构即契约）
 ├── lib/site.ts          # SITE_NAME='DofuPDF' / SITE_URL（默认 https://dofupdf.com）/ GITHUB_URL / CONTACT_EMAIL（support@dofupdf.com，CF Email Routing 转发）
 ├── lib/seo.ts           # buildAlternates / pageMetadata / localizedPath / OG_IMAGE_URL
-├── lib/tools.ts         # 22 工具注册表（slug/图标/status；HWP/HWPX 两个工具已整体下线，渲染器与内嵌字体文件已删除）
-├── lib/guides/          # 教程内容系统（日语）：types.ts + index.ts 注册表 + 17 个 <slug>.ts 数据文件
+├── lib/tools.ts         # 23 工具注册表（slug/图标/status；HWP/HWPX 两个工具已整体下线，渲染器与内嵌字体文件已删除）
+├── lib/guides/          # 教程内容系统（日语）：types.ts + index.ts 注册表 + 18 个 <slug>.ts 数据文件
 ├── lib/compare/         # 竞品对比页（日语）：dofupdf-vs-ilovepdf / -smallpdf / -sejda
 └── lib/pdf/             # 纯函数处理层（与 React 解耦，Node 可测）
 ```

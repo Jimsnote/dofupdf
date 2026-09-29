@@ -15,7 +15,7 @@ DofuPDFは無料のブラウザベースPDFツール集です。既存のオン�
 
 ## ツール
 
-次の22のツールはすべてブラウザ内で100%クライアント側に実行されます:
+次の23のツールはすべてブラウザ内で100%クライアント側に実行されます:
 
 - PDF結合 — 複数のPDFを任意の順で1つのファイルにまとめます。 https://dofupdf.com/merge-pdf/
 - PDF分割 — ページ範囲を抽出したり、1つのPDFを個別の文書に分割したりします。 https://dofupdf.com/split-pdf/
@@ -39,6 +39,7 @@ DofuPDFは無料のブラウザベースPDFツール集です。既存のオン�
 - 画像抽出 — PDFに埋め込まれたすべての画像をJPG/PNGファイルとして取り出します。 https://dofupdf.com/extract-images/
 - QRコード生成 — リンクやテキストなどのQRコードをローカルで生成します。 https://dofupdf.com/qr-code/
 - PDF文字起こし(OCR) — 端末内OCRでスキャンしたPDFを検索・選択可能にします。 https://dofupdf.com/ocr-pdf/
+- 領収書まとめ印刷 — 電子領収書や請求書のPDFを、A4の用紙1枚にまとめて並べます。 https://dofupdf.com/receipt-sheet/
 
 ## ページ
 

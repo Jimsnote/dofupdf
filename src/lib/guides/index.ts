@@ -1,6 +1,7 @@
 import type { Guide } from './types';
 import { pdfToolsThatDontUpload } from './5-pdf-tools-that-dont-upload-your-files';
 import { howToAddPageNumbersToPdf } from './how-to-add-page-numbers-to-pdf';
+import { howToPrintReceiptsOnOneA4 } from './how-to-print-receipts-on-one-a4';
 import { howToAddWatermarkToPdf } from './how-to-add-watermark-to-pdf';
 import { howToCompressPdf } from './how-to-compress-pdf';
 import { howToConvertJpgToPdf } from './how-to-convert-jpg-to-pdf';
@@ -36,6 +37,7 @@ export const guides: Guide[] = [
   howToUnlockPdf,
   howToAddWatermarkToPdf,
   howToAddPageNumbersToPdf,
+  howToPrintReceiptsOnOneA4,
   howToConvertPdfToMarkdown,
   howToConvertDocxToMarkdown,
   howToConvertXlsxToMarkdown,

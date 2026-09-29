@@ -41,7 +41,7 @@ export const dofuPdfVsIlovepdf: Compare = {
     },
     {
       feature: 'ツールの数',
-      dofuPdf: '22のツール、OfficeをMarkdownへ変換を含む',
+      dofuPdf: '23のツール、OfficeをMarkdownへ変換を含む',
       them: '30以上のツール、PDFをWordへ、電子署名、OCRを含む',
     },
   ],
