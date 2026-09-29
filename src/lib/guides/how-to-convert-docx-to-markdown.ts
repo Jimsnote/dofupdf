@@ -22,7 +22,7 @@ export const howToConvertDocxToMarkdown: Guide = {
     {
       heading: 'ステップバイステップ：DofuPDFで変換する',
       paragraphs: [
-        '[DOCXをMarkdownへツール](/docx-to-markdown/) を開きます。インストールも、作るアカウントも不要です。アップロード領域に .docx ファイルをドラッグするか、クリックしてファイル選択窓から選びます。',
+        '[DOCXをMarkdownへツール](/docx-to-markdown/) を開きます。インストールも、作るアカウントも不要です。ドロップエリアに .docx ファイルをドラッグするか、クリックしてファイル選択窓から選びます。',
         '「Markdownに変換」をクリックします。文書はブラウザのタブ内で直接読まれて再構築され、所要時間はネット速度ではなく文書の方で決まります。',
         'ダウンロードカードが出たらダウンロードをクリックします。結果は download.md として保存され、元の .docx は絶対に修正されません。',
       ],
