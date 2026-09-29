@@ -5,7 +5,7 @@ export const dofuPdfVsSmallpdf: Compare = {
   competitor: 'Smallpdf',
   title: 'DofuPDF vs Smallpdf: 無料利用回数の比較 | DofuPDF',
   description:
-    'Smallpdfは無料利用を1日2回に制限し、ファイルをサーバーにアップロードします。DofuPDFは1日制限がなく、すべてをブラウザ内でローカルに処理します — 無料、登録不要。',
+    'Smallpdfは無料利用を1日2回に制限し、ファイルをサーバーにアップロードします。DofuPDFは1日制限がなく、すべてをブラウザ内でローカルに処理します。無料で、登録も不要です。',
   verdict:
     'Smallpdfは洗練された人気のPDFツールですが、無料プランは1日2回までしか使えず、文書をサーバーにアップロードする必要があります。Proは月約12ドルから。DofuPDFには1日の作業制限がまったくなく、アカウントも要求しません。すべてのツールがブラウザ内でローカルに動作するからです。頻繁に、毎日おこなうPDF作業なら、DofuPDFのほうが制約が少なく、プライバシーにも配慮した選択です。',
   rows: [
@@ -51,7 +51,7 @@ export const dofuPdfVsSmallpdf: Compare = {
     { label: 'Smallpdf公式サイト', url: 'https://smallpdf.com/' },
   ],
   theirStrengths: [
-    'ガイド付き署名フローを備えた電子署名 — DofuPDFにはない機能です。',
+    'ガイド付き署名フローを備えた電子署名は、DofuPDFにはない機能です。',
     '文書要約、PDFと対話できるAI機能。',
     'オフラインと外出先での利用向けのネイティブなデスクトップ・モバイルアプリ。',
   ],

@@ -5,7 +5,7 @@ export const dofuPdfVsIlovepdf: Compare = {
   competitor: 'iLovePDF',
   title: 'DofuPDF vs iLovePDF: プライバシー・制限・料金の比較 | DofuPDF',
   description:
-    'iLovePDFはファイルをサーバーにアップロードし、無料プランに制限を設けています。DofuPDFはすべてをブラウザ内でローカルに処理します — 永久に無料、無制限、登録不要。',
+    'iLovePDFはファイルをサーバーにアップロードし、無料プランに制限を設けています。DofuPDFはすべてをブラウザ内でローカルに処理します。永久に無料で、無制限、登録不要です。',
   verdict:
     'iLovePDFはオンラインPDFツールの中で最も知られた存在で、文書をサーバーにアップロードする方式で動作します。無料プランは一度に処理できる量を制限し、プレミアムは月約4ドルから。DofuPDFはPDFの結合、分割、圧縮、保護といった核心作業をすべてブラウザ内でおこないます。ファイルはデバイスから外出せず、アカウントも作業制限もウォーターマークもありません。コードはオープンソース（AGPL-3.0）で、プライバシー保護の主張を自分で検証できます。',
   rows: [
@@ -51,7 +51,7 @@ export const dofuPdfVsIlovepdf: Compare = {
     { label: 'iLovePDF公式サイト', url: 'https://www.ilovepdf.com/' },
   ],
   theirStrengths: [
-    '全体的にツール数で優位：レイアウトを保ったPDFをWordへの変換、スキャン文書向けのOCR、電子署名 — DofuPDFにはまだない機能です。',
+    '全体的にツール数で優位です。レイアウトを保ったPDFをWordへの変換、スキャン文書向けのOCR、電子署名など、DofuPDFにはまだない機能があります。',
     'モバイルアプリと、サーバー側自動化向けの開発者API。',
     'サーバー処理にはブラウザのメモリ上限がないため、非常に大きく大量のファイルも比較的すんなり処理できます。',
   ],
