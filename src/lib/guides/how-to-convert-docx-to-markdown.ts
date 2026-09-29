@@ -11,7 +11,7 @@ export const howToConvertDocxToMarkdown: Guide = {
   description:
     'ステップバイステップ案内：.docxを見栄えのするMarkdownへ変換 — 見出し、リスト、表、太字／斜体を保持 — すべてブラウザ内でローカル処理。無料、アップロードなし、登録不要。',
   intro:
-    'Word文書をMarkdownに変換する最も簡単な方法は、ブラウザでローカルに処理することです。無料の [DOCXをMarkdownへツール](/docx-to-markdown/) を開いて .docx ファイルを置き、「Markdownに変換」をクリックして、結果を download.md としてダウンロードしてください。見出し、リスト、表、太字、斜体、リンクはMarkdownの対応形式のまま保たれ、すべての処理はユーザーのデバイス内でおこなわれます。文書はアップロードされずアカウントも不要で、変換後のMarkdownはObsidianのノート、GitHub README、AIアシスタント入力にそのまま使えます。',
+    'Word文書をMarkdownに変換する最も簡単な方法は、ブラウザでローカルに処理することです。無料の [DOCXをMarkdownへツール](/docx-to-markdown/) を開いて .docx ファイルを置き、「Markdownに変換」をクリックして、結果を download.md としてダウンロードしてください。見出し、リスト、表、太字、斜体、リンクはMarkdownの対応形式のまま保たれ、処理はお使いの端末の中だけで行われます。文書はアップロードされずアカウントも不要で、変換後のMarkdownはObsidianのノート、GitHub README、AIアシスタント入力にそのまま使えます。',
   quickSteps: [
     'DOCXをMarkdownへツールを開き、.docxファイルをドラッグ＆ドロップするかクリックして追加します（古い .doc ファイルは先に .docx へ保存し直す必要があります）。',
     '「Markdownに変換」ボタンをクリックします — 文書はブラウザ内で直接パースされ再構築され、たいてい数秒で終わります。',
@@ -98,7 +98,7 @@ export const howToConvertDocxToMarkdown: Guide = {
   faqs: [
     {
       q: 'DofuPDFでのWordからMarkdownへ変換は無料ですか？',
-      a: 'はい。すべてのDofuPDFツールは、ウォーターマーク、1日の割り当て、プレミアムランクなしで永久に無料です。変換がユーザーのデバイスで実行されるため、サーバーコストもありません。',
+      a: 'はい。すべてのDofuPDFツールは、ウォーターマーク、1日の回数制限、有料プランなしで永久に無料です。変換はお使いの端末の中で行われるため、サーバーコストは発生せず、その負担をご利用の方にかけることもありません。',
     },
     {
       q: 'どんな書式が保持されますか？',
