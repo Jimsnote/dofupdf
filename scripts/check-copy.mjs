@@ -112,6 +112,15 @@ function lastSegment(key) {
 const BAD_CHARS = ['，', '；', '！', '“', '”', '‘', '’'];
 
 /**
+ * An em-dash right after a short comma-free run is a chip and its gloss
+ * (`中央 — ページに1つ`, `JPG — ファイルサイズ小`), not an English-style aside.
+ * The test is deliberately rough: the prose count is a trend, not a verdict.
+ */
+function isLabelHead(head) {
+  return head.length <= 16 && !head.includes('。') && !head.includes('、');
+}
+
+/**
  * Opt-out marker for a single string, written as a trailing line comment whose
  * text is exactly this constant.
  * Copy that *quotes* what a user might type has to contain the wrong characters on
@@ -152,7 +161,9 @@ if (current.size === 0) {
 // ---------- collect ----------
 const failures = [];
 const notices = [];
-const emDash = [];
+const proseDash = [];
+const labelDash = [];
+const titleDash = [];
 const userGenitive = [];
 let changed = 0;
 let charDelta = 0;
@@ -189,11 +200,23 @@ for (const [key, value] of current) {
   if (/^\{\s*$/.test(value)) continue;
   if (name === 'title' && value.length > 60) notices.push(`${key}: title が ${value.length} 字（検索結果では約 60 字で切れる）`);
   if (name === 'description' && value.length > 160) notices.push(`${key}: description が ${value.length} 字（約 160 字で切れる）`);
-  // ` — ` is the strongest translation-ese tell in this corpus (139 strings carry
-  // it at the time of writing) but a rewrite pass cannot clear them all at once, so
-  // it is reported as a count rather than failed on. The number going up is the
-  // signal — see scripts/copy-tells.json and docs/COPY-JA-STYLE.md.
-  if (value.includes(' — ')) emDash.push(key);
+  // ` — ` is the strongest translation-ese tell in this corpus, but it wears three
+  // hats and only one of them is a defect:
+  //   title  `PDF結合 — オンラインで無料 | DofuPDF`  — a normal search-result separator
+  //   label  `中央 — ページに1つ`                       — a chip and its gloss
+  //   prose  `23個のツール — 結合、分割 — すべて`        — an English aside, not Japanese
+  // `——` (two em-dashes, no spaces) is always the prose hat: no title separator or
+  // UI chip is ever written that way, so those strings count as prose unconditionally.
+  // Only the prose tier is ratcheted; counting the raw character would push a
+  // rewrite pass toward punctuation that is correct as it stands.
+  const dashParts = value.split(' — ');
+  if (value.includes('——') || value.includes('――')) {
+    proseDash.push(key);
+  } else if (dashParts.length > 1) {
+    if (name === 'metaTitle' || name === 'ogTitle') titleDash.push(key);
+    else if (dashParts.length === 2 && isLabelHead(dashParts[0])) labelDash.push(key);
+    else proseDash.push(key);
+  }
   if (value.includes('ユーザーの')) userGenitive.push(key);
 
   // --- baseline comparisons ---
@@ -224,10 +247,15 @@ if (baseline.size) {
 if (UPDATE) {
   const obj = Object.fromEntries([...current.entries()].sort(([a], [b]) => a.localeCompare(b)));
   fs.writeFileSync(BASELINE, JSON.stringify(obj, null, 1) + '\n', 'utf8');
-  fs.writeFileSync(RATCHET, JSON.stringify({ emDash: emDash.length, userGenitive: userGenitive.length }, null, 1) + '\n', 'utf8');
+  fs.writeFileSync(RATCHET, JSON.stringify({
+    proseDash: proseDash.length,
+    labelDash: labelDash.length,
+    titleDash: titleDash.length,
+    userGenitive: userGenitive.length,
+  }, null, 1) + '\n', 'utf8');
   const skipped = emptyFiles.length ? ` (no strings in: ${emptyFiles.join(', ')})` : '';
   console.log(`baseline pinned: ${current.size} strings across ${files.length - emptyFiles.length} files -> scripts/copy-baseline.json${skipped}`);
-  console.log(`tells pinned: " — " ${emDash.length}, ユーザーの ${userGenitive.length} -> scripts/copy-tells.json`);
+  console.log(`tells pinned: dash prose ${proseDash.length} / label ${labelDash.length} / title ${titleDash.length}, ユーザーの ${userGenitive.length} -> scripts/copy-tells.json`);
   process.exit(0);
 }
 
@@ -240,16 +268,20 @@ console.log(`  changed vs baseline: ${changed}  (net ${charDelta >= 0 ? '+' : ''
 // only deliberately — see COPY-JA-STYLE.md.
 if (fs.existsSync(RATCHET)) {
   const prev = JSON.parse(fs.readFileSync(RATCHET, 'utf8'));
-  const row = (label, now, before) => {
+  const row = (label, now, before, ratcheted) => {
     const delta = now < before ? `${before} -> ${now} 改善` : now > before ? `${before} -> ${now} 悪化` : `${now} (unchanged)`;
-    console.log(`  TELL ${label.padEnd(22)} ${delta}`);
-    if (now > before) notices.push(`${label} の数が増えている (${before} -> ${now})`);
+    console.log(`  TELL ${label.padEnd(24)} ${delta}${ratcheted ? '' : '  (参考値)'}`);
+    if (ratcheted && now > before) notices.push(`${label} の数が増えている (${before} -> ${now})`);
   };
-  row('「 — 」ダッシュ', emDash.length, prev.emDash ?? 0);
-  row('ユーザーの', userGenitive.length, prev.userGenitive ?? 0);
+  row('「 — 」挿入句', proseDash.length, prev.proseDash ?? 0, true);
+  row('ユーザーの', userGenitive.length, prev.userGenitive ?? 0, true);
+  row('「 — 」ラベル', labelDash.length, prev.labelDash ?? 0, false);
+  row('「 — 」タイトル区切り', titleDash.length, prev.titleDash ?? 0, false);
 } else {
-  console.log(`  TELL 「 — 」ダッシュ      ${emDash.length} (first reading, no ratchet file yet)`);
+  console.log(`  TELL 「 — 」挿入句        ${proseDash.length} (first reading, no ratchet file yet)`);
   console.log(`  TELL ユーザーの            ${userGenitive.length}`);
+  console.log(`  TELL 「 — 」ラベル        ${labelDash.length} (参考値)`);
+  console.log(`  TELL 「 — 」タイトル区切り ${titleDash.length} (参考値)`);
 }
 for (const n of notices) console.log(`  NOTE ${n}`);
 for (const f of failures) console.log(`  FAIL ${f}`);
