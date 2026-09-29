@@ -4,6 +4,7 @@
  *
  *   node scripts/check-copy.mjs             # audit against the pinned baseline
  *   node scripts/check-copy.mjs --update    # re-pin the baseline (deliberate only)
+ *   node scripts/check-copy.mjs --tells     # list every ratcheted tell with its key
  *
  * Why a baseline instead of standalone rules: rewriting copy cannot be checked by
  * the compiler. A missing `{size}` placeholder, a renamed key, a title that grew
@@ -22,6 +23,7 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const BASELINE = path.join(ROOT, 'scripts', 'copy-baseline.json');
 const RATCHET = path.join(ROOT, 'scripts', 'copy-tells.json');
 const UPDATE = process.argv.includes('--update');
+const TELLS = process.argv.includes('--tells');
 
 /** Files that hold user-facing Japanese copy. */
 function copyFiles() {
@@ -285,5 +287,23 @@ if (fs.existsSync(RATCHET)) {
 }
 for (const n of notices) console.log(`  NOTE ${n}`);
 for (const f of failures) console.log(`  FAIL ${f}`);
+
+// Where the tells actually are, so a rewrite pass can work down a list instead of
+// grepping by hand. Keys are printed as `file::path` and the text is truncated:
+// the point is the location, not another read of the whole paragraph.
+if (TELLS) {
+  const cut = (v) => (v.length > 90 ? `${v.slice(0, 90)}…` : v);
+  const lines = [];
+  const section = (label, keys) => {
+    lines.push(`--- ${label}: ${keys.length} ---`);
+    for (const k of keys) lines.push(`${k}\n    ${cut(current.get(k))}`);
+  };
+  section('prose dash', proseDash);
+  section('ユーザーの', userGenitive);
+  // Written with fs, not console: a shell redirect re-encodes the stream and a
+  // PowerShell console turns the Japanese into mojibake.
+  fs.writeFileSync(path.join(ROOT, 'tmp-tells.txt'), lines.join('\n') + '\n', 'utf8');
+  console.log(`tells listed -> tmp-tells.txt (${proseDash.length} prose dash, ${userGenitive.length} ユーザーの)`);
+}
 console.log(`\n=== ${failures.length} failures, ${notices.length} notes ===`);
 process.exit(Math.min(failures.length, 125));
