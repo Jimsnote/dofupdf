@@ -1,0 +1,61 @@
+# DofuPDF
+
+> プライバシーを守る無料PDFツール — 100%クライアント側で処理、アップロードなし、登録なし、永久無料。
+
+DofuPDFは無料のブラウザベースPDFツール集です。既存のオンラインPDFツールとは異なり、DofuPDFはWebAssemblyを使ってすべてのファイルをユーザーの端末内でローカルに処理します — ファイルはサーバーにアップロードされません。アカウント、メールアドレス、登録は不要で、使用制限のない完全無料です。そのため、契約書、医療記録、金融明細といった機密文書にも安全に使えます。
+
+## 主な特徴
+
+- 100%クライアント側処理: ファイルは端末から外に出ず、どのサーバーにもアップロードされません。
+- 登録なし: アカウントもメールアドレスも個人情報も不要です。
+- 永久無料: すべてのツールが無料。使用制限、透かし、プレミアム課金はありません。サイトは控えめな広告で運営されています。
+- オープンソース: 全ソースコードはGNU AGPL-3.0ライセンスで公開され、GitHubで検証できます。
+- 検証可能なプライバシー: インターネットを切断してもツールは動作を続け、ブラウザの開発者ツールでアップロードが一切発生しないことを確認できます。
+- 日本語対応: すべてのページとツールが日本語で提供されます。
+
+## ツール
+
+次の22のツールはすべてブラウザ内で100%クライアント側に実行されます:
+
+- PDF結合 — 複数のPDFを任意の順で1つのファイルにまとめます。 https://dofupdf.com/merge-pdf/
+- PDF分割 — ページ範囲を抽出したり、1つのPDFを個別の文書に分割したりします。 https://dofupdf.com/split-pdf/
+- PDF圧縮 — 必要な品質を保ちながらファイルサイズを削減します。 https://dofupdf.com/compress-pdf/
+- PDF回転 — 単ページもドキュメント全体も数秒で回転します。 https://dofupdf.com/rotate-pdf/
+- ページ整理 — ドラッグ&ドロップでページの並べ替え・削除・配置ができます。 https://dofupdf.com/organize-pdf/
+- ページ削除 — ビジュアルのページ選択ツールでPDFから不要なページを削除します。 https://dofupdf.com/remove-pages/
+- ページ抽出 — PDFから選択したページを新しい文書として保存します。 https://dofupdf.com/extract-pages/
+- ページ順変更 — ページをドラッグして思いどおりの順に並び替えます。 https://dofupdf.com/reorder-pages/
+- PDFをJPGに — PDFの各ページを高品質なJPG画像にします。 https://dofupdf.com/pdf-to-jpg/
+- JPGをPDFに — JPG画像をきれいで共有しやすいPDF文書に変換します。 https://dofupdf.com/jpg-to-pdf/
+- HEICをPDFに — iPhoneのHEIC写真をきれいで共有しやすいPDF文書にします。 https://dofupdf.com/heic-to-pdf/
+- PDFに署名 — 署名を描画または写真アップロードで、PDFの任意の場所に配置します。 https://dofupdf.com/sign-pdf/
+- PDF保護 — PDFを非公開に保つためAES-256のパスワード暗号化を追加します。 https://dofupdf.com/protect-pdf/
+- PDFのロック解除 — 所有するPDFからパスワード保護を削除します。 https://dofupdf.com/unlock-pdf/
+- 透かし追加 — テキストまたは画像の透かしをタイル状や中央に配置します。 https://dofupdf.com/watermark-pdf/
+- ページ番号追加 — 任意の位置に正確なページ番号を追加します。 https://dofupdf.com/page-numbers/
+- PDFをMarkdownに — あらゆるPDFから見出し・段落・リストの整ったMarkdownを抽出します。 https://dofupdf.com/pdf-to-markdown/
+- DOCXをMarkdownに — Word文書を、きれいでAIに扱いやすいMarkdownに変換します。 https://dofupdf.com/docx-to-markdown/
+- XLSXをMarkdownに — スプレッドシートのシートをMarkdownの表にします。 https://dofupdf.com/xlsx-to-markdown/
+- 画像抽出 — PDFに埋め込まれたすべての画像をJPG/PNGファイルとして取り出します。 https://dofupdf.com/extract-images/
+- QRコード生成 — リンクやテキストなどのQRコードをローカルで生成します。 https://dofupdf.com/qr-code/
+- PDF文字起こし(OCR) — 端末内OCRでスキャンしたPDFを検索・選択可能にします。 https://dofupdf.com/ocr-pdf/
+
+## ページ
+
+- ホーム: https://dofupdf.com/
+- 概要: https://dofupdf.com/about/
+- プライバシーポリシー: https://dofupdf.com/privacy/
+- 利用規約: https://dofupdf.com/terms/
+- よくある質問: https://dofupdf.com/faq/
+
+## ガイド
+
+実際のUIスクリーンショット付きのステップバイステップチュートリアル: https://dofupdf.com/guides/
+
+## 比較
+
+人気PDFツールとのファクトチェック付き比較。各ツールの実際の強みも含めて紹介しています:
+
+- DofuPDF vs iLovePDF: https://dofupdf.com/compare/dofupdf-vs-ilovepdf/
+- DofuPDF vs Smallpdf: https://dofupdf.com/compare/dofupdf-vs-smallpdf/
+- DofuPDF vs Sejda: https://dofupdf.com/compare/dofupdf-vs-sejda/

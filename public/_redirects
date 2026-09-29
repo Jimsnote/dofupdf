@@ -1,0 +1,17 @@
+# Retire the old localized URL space: every /de/, /fr/, /it/, /es/, /pt/, /zh/
+# and /ja/ URL (with or without a subpath) 301-redirects to the matching
+# unprefixed page, which is now the Japanese site root.
+/de / 301
+/de/* /:splat 301
+/fr / 301
+/fr/* /:splat 301
+/it / 301
+/it/* /:splat 301
+/es / 301
+/es/* /:splat 301
+/pt / 301
+/pt/* /:splat 301
+/zh / 301
+/zh/* /:splat 301
+/ja / 301
+/ja/* /:splat 301

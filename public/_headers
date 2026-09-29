@@ -1,0 +1,27 @@
+# Cloudflare custom headers (served by Workers Static Assets / Pages).
+#
+# CSP design notes:
+# - script-src includes 'unsafe-inline' because Next.js static export embeds
+#   inline hydration payloads (self.__next_f.push) in every page; their hashes
+#   change with each build and nonces would require edge HTML rewriting.
+#   The directive that actually enforces "files never leave the device" is
+#   connect-src 'self', which stays strict.
+# - static.cloudflareinsights.com / cloudflareinsights.com are allowed because
+#   Cloudflare Web Analytics (automatic beacon injection) is enabled on the zone.
+#   No other analytics: Microsoft Clarity was removed — no session recording.
+# - Enabling Google AdSense later will need Google's official host list
+#   (pagead2.googlesyndication.com etc.) added to script-src, frame-src,
+#   img-src and connect-src. Make that change when ads are switched on.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob: https://cloudflareinsights.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Service Worker 必须始终 revalidate，否则浏览器拿不到 SW 更新
+/sw.js
+  Cache-Control: no-cache
+
+# manifest 不宜长缓存（图标/名称可能调整）
+/manifest.webmanifest
+  Cache-Control: public, max-age=3600
