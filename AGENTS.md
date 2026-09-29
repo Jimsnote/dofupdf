@@ -71,8 +71,9 @@ src/
 
 - **新增工具**：`lib/pdf/` 纯函数 → `components/tools/` 组件 → ToolPageScaffold 加 slug → `(ja)/` 加薄路由 → `ja.ts` 加 `toolPages` 条目（**只增不改既有 key**，它是类型源头）→ `tools.ts` 置 live → 验证 → Node 实测核心逻辑
 - **日语文案**：`ja.ts` 是唯一字典，key/结构/数组长度即全站类型契约；metaTitle ≤60 字符、metaDescription ≤160；工具名/三支柱等固定术语以 `ja.ts` 既有译法为准。**血泪教训（原韩语语境同款适用）：AI 生成日语时长段落极易夹带其它语种词或造出非词汇的假名/汉字组合**，写入后必须跑机械校验：`node scripts/_qa.mjs <file…>`（扫描 hangul / 西里尔 / 简体特用字 / 夹在 CJK 之间的拉丁词，白名单在脚本内）；PowerShell 下批量用 `Get-ChildItem … | ForEach-Object FullName` 展开通配符后 `node scripts/_qa.mjs @files`。**绝不用手打 CJK 做 SearchReplace**（匹配不上就 Read 取精确原文，或改用最短唯一子串）。
+- **改写既有日语文案**（降翻译腔）：闸门是 `npm run check:copy`（首次已钉基线 `scripts/copy-baseline.json`，2053 串 / 24 文件）。它 FAIL：key 增删改名、插值占位符集合变化、中文标点（`，；！“”‘’`）、空串、首尾空白（`*Connector`/`*Separator` 除外，它们带空格是故意的）；它 NOTE：title>60 / description>160、相对基线膨胀 >1.8x 或缩水 <0.35x、` — ` 与 `ユーザーの` 的棘轮计数（参照值 `scripts/copy-tells.json`，只允许下降）。文案里引用「用户可能输入的字符」时必须照实写全角符号，行尾加 `// copy-check: allow-cjk-punctuation` 豁免。改写规则与术语表在 `docs/COPY-JA-STYLE.md`（docs/ 不入库，仅本地）；核心三条：` — ` 拆句、`ユーザーの+名词` 换 `お使いの/手元の/～の中で`、`すべての` 冗余量词删短。**一批一 commit，基线只在整批确认后才 `--update` 重钉**（重钉等于宣布新基准，先读 diff）。
 - **文件读写**：含 CJK 的文件一律用 Read/SearchReplace/Write 或 Node 处理；PowerShell 读写会损坏 UTF-8。`node -e` 的内联引号会被 PowerShell 破坏，复杂逻辑写成 `.mjs` 再 `node` 运行。
-- **验证三件套**（提交前必跑）：`npm run type-check` / `npm run lint` / `npm run build`
+- **验证三件套**（提交前必跑）：`npm run type-check` / `npm run lint` / `npm run build`；改文案文件时加跑 `npm run check:lang` + `npm run check:copy`
 - **测试**：无测试框架；核心逻辑用临时 Node 脚本实测（用后删除）。CJS 模式编译（`tsc --module commonjs`）再 require，避免 ESM 路径坑
 - **git**：main 分支，英文 commit message；用户已授权本地 commit；**push 前必须经用户确认**（GitHub Desktop 由用户操作）
 - **许可**：AGPL-3.0；新增第三方依赖时核对许可证（优先 MIT/Apache；GPL 系引入即传染）
