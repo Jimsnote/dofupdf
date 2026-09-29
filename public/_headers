@@ -25,3 +25,31 @@
 # manifest 不宜长缓存（图标/名称可能调整）
 /manifest.webmanifest
   Cache-Control: public, max-age=3600
+
+# ---------------------------------------------------------------------------
+# Cache-Control 覆盖。
+# Workers Static Assets 默认给每一个响应发 `public, max-age=0, must-revalidate`
+# （上面的 /* 块没有设置 Cache-Control，这个默认值来自平台），连内容哈希过的
+# 构建产物和 15 MB 的 PDF 引擎也不例外 —— 每次回场都要一次 revalidate 往返。
+# sw.js 只兜得住 /_next/static/**（cache-first），/wasm/** 被它明确让给
+# pdf-heavy.worker.ts 自己的 Cache Storage，所以 HTTP 层这一层必须自己补。
+# 只对「URL 变了就是新文件」的路径开长缓存；HTML 留在默认值上，否则改了 guide
+# 正文要等缓存过期才能生效。
+# ---------------------------------------------------------------------------
+
+# Next.js 产物文件名带内容哈希，换内容即换 URL
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# PDF 引擎：文件名带版本号（gs-0.0.2.wasm / qpdf-0.0.2.wasm）
+/wasm/*
+  Cache-Control: public, max-age=2592000, immutable
+
+# OCR：traineddata 名字里带语言码可以长存，但 worker.min.js 和
+# tesseract-core-simd-lstm.wasm 名字不带版本，npm 升级会原地替换内容，
+# 所以整目录只给一天，让它自己滚出去
+/tesseract/*
+  Cache-Control: public, max-age=86400
+
+/icons/*
+  Cache-Control: public, max-age=2592000, immutable
