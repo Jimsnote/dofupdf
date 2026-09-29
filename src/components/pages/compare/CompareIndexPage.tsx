@@ -12,7 +12,7 @@ export function CompareIndexPage() {
         DofuPDF比較
       </h1>
       <p className="mt-3 leading-relaxed text-slate-600">
-        DofuPDFと人気PDFツール間の、正直でファクトチェック済みの比較 — 相手の本当に優れた点まで含めます。
+        DofuPDFと人気PDFツールの正直な比較。ファクトチェック済みで、相手の本当に優れた点まで含めます。
       </p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {compares.map((compare) => (
