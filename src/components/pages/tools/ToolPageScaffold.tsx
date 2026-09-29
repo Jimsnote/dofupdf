@@ -158,7 +158,7 @@ export function ToolPageScaffold({ locale, dict, slug, children }: ToolPageScaff
           >
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
-                Read the full guide
+                {dict.guideCta}
               </p>
               <p className="mt-1 font-semibold text-slate-900">{guide.title}</p>
             </div>

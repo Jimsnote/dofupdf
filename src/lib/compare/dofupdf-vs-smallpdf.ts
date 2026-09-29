@@ -21,7 +21,7 @@ export const dofuPdfVsSmallpdf: Compare = {
     },
     {
       feature: '料金',
-      dofuPdf: '無料、目に付かない広告で運営',
+      dofuPdf: '無料、目立たない広告で運営',
       them: '無料プラン + Proは月約12ドルから',
     },
     {
@@ -36,8 +36,8 @@ export const dofuPdfVsSmallpdf: Compare = {
     },
     {
       feature: 'プライバシーへの考え方',
-      dofuPdf: 'ファイルはデバイスから外出しません。オープンソース（AGPL-3.0）',
-      them: '短い保存期間後に削除（ポリシー基準）',
+      dofuPdf: 'ファイルはデバイスから出ません。オープンソース（AGPL-3.0）',
+      them: '短い保存期間後に削除（ポリシー上の記載）',
     },
     {
       feature: '目立つ追加機能',
