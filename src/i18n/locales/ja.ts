@@ -117,7 +117,7 @@ export const ja = {
     },
     'rotate-pdf': {
       name: 'PDF回転',
-      description: '単ページもドキュメント全体も数秒で回転します。',
+      description: '1ページも文書全体も数秒で回転します。',
     },
     'organize-pdf': {
       name: 'ページ整理',
