@@ -11,7 +11,7 @@ export const dofuPdfVsSmallpdf: Compare = {
   rows: [
     {
       feature: 'ファイルの処理場所',
-      dofuPdf: '自分のデバイス内で処理（ブラウザ内WebAssembly）',
+      dofuPdf: '自分の端末内で処理（ブラウザ内WebAssembly）',
       them: 'Smallpdfサーバーへアップロード',
     },
     {
@@ -36,7 +36,7 @@ export const dofuPdfVsSmallpdf: Compare = {
     },
     {
       feature: 'プライバシーへの考え方',
-      dofuPdf: 'ファイルはデバイスから出ません。オープンソース（AGPL-3.0）',
+      dofuPdf: 'ファイルは端末から出ません。オープンソース（AGPL-3.0）',
       them: '短い保存期間後に削除（ポリシー上の記載）',
     },
     {
@@ -58,7 +58,7 @@ export const dofuPdfVsSmallpdf: Compare = {
   faqs: [
     {
       q: '1日2回の制限は本当ですか？',
-      a: 'はい。Smallpdfの価格ページには、無料プランが1日2文書に制限されると明記されています。上限に達すると、翌日まで待つかProへアップグレードする必要があります。DofuPDFにそうした制限はありません。作業は借り物のサーバーではなく自分のデバイスでおこなわれるため、何度でも使えます。',
+      a: 'はい。Smallpdfの価格ページには、無料プランが1日2文書に制限されると明記されています。上限に達すると、翌日まで待つかProへアップグレードする必要があります。DofuPDFにそうした制限はありません。作業は借り物のサーバーではなく自分の端末でおこなわれるため、何度でも使えます。',
     },
     {
       q: '機密性の高いファイルにはどちらが適していますか？',
