@@ -9,7 +9,7 @@ export const howToConvertXlsxToMarkdown: Guide = {
   toolSlug: 'xlsx-to-markdown',
   title: 'ExcelをMarkdown表に変換する方法（無料・ローカル処理）',
   description:
-    'ステップバイステップ案内：.xlsx/.xls ワークブックをMarkdown表へ変換。シートごとに1セクション、ブラウザ内でローカルに処理します。無料、アップロードなし、登録不要。',
+    '手順を一つずつ解説：.xlsx/.xls ワークブックをMarkdown表へ変換。シートごとに1セクション、ブラウザ内でローカルに処理します。無料、アップロードなし、登録不要。',
   intro:
     'ExcelワークブックをMarkdownに変換する最も速い方法は、ブラウザでローカルに処理することです。無料の [DofuPDF XLSXをMarkdownへツール](/xlsx-to-markdown/) を開き、.xlsx または .xls ファイルを置いてから、「Markdownに変換」ボタンをクリックして、結果を download.md としてダウンロードしてください。内容のあるすべてのシートが「## Sheet: <name>」セクションになり、GitHub Flavored Markdown 表を伴います。処理はお使いの端末の中だけで行われ、ワークブックはアップロードされず、アカウントも不要です。',
   quickSteps: [

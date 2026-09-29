@@ -88,7 +88,7 @@ export const howToConvertJpgToPdf: Guide = {
     {
       heading: 'WebP、HEIC、GIFファイルはスキップされる',
       paragraphs: [
-        'このツールはJPGとPNGのみ対応します。それ以外の形式は落とすと案内付きでスキップされます。よくあるのはHEICで保存されたiPhone写真です。これから撮る写真はiOSの設定で「互換性優先（Most Compatible）」に切り替え、既存のHEIC写真は変換前にJPEGへ書き出してください。',
+        'このツールはJPGとPNGのみ対応します。それ以外の形式は落とすとメッセージ付きでスキップされます。よくあるのはHEICで保存されたiPhone写真です。これから撮る写真はiOSの設定で「互換性優先（Most Compatible）」に切り替え、既存のHEIC写真は変換前にJPEGへ書き出してください。',
       ],
     },
     {

@@ -9,7 +9,7 @@ export const howToConvertDocxToMarkdown: Guide = {
   toolSlug: 'docx-to-markdown',
   title: 'Word（DOCX）をMarkdownに変換する方法（無料・ローカル処理）',
   description:
-    'ステップバイステップ案内：.docxを見栄えのするMarkdownへ変換。見出し、リスト、表、太字／斜体を保持し、すべてブラウザ内でローカル処理。無料、アップロードなし、登録不要。',
+    '手順を一つずつ解説：.docxをきれいに整形されたMarkdownへ変換。見出し、リスト、表、太字／斜体を保持し、すべてブラウザ内でローカル処理。無料、アップロードなし、登録不要。',
   intro:
     'Word文書をMarkdownに変換する最も簡単な方法は、ブラウザでローカルに処理することです。無料の [DOCXをMarkdownへツール](/docx-to-markdown/) を開いて .docx ファイルを置き、「Markdownに変換」をクリックして、結果を download.md としてダウンロードしてください。見出し、リスト、表、太字、斜体、リンクはMarkdownの対応形式のまま保たれ、処理はお使いの端末の中だけで行われます。文書はアップロードされずアカウントも不要で、変換後のMarkdownはObsidianのノート、GitHub README、AIアシスタント入力にそのまま使えます。',
   quickSteps: [
