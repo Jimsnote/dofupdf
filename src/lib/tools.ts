@@ -39,11 +39,17 @@ export interface Tool {
  * Central tool registry. Cards on the home page render from this list;
  * flipping a status to 'live' makes the card clickable once the tool route
  * exists.
+ *
+ * The order is the home page matrix (3 columns on desktop), so the first six
+ * entries are what a visitor sees before scrolling — the receipt sheet sits at
+ * the head of the second row because bookkeeping is the sharpest use case of
+ * the whole set.
  */
 export const tools: Tool[] = [
   { slug: 'merge-pdf', icon: Merge, i18nKey: 'merge-pdf', status: 'live' },
   { slug: 'split-pdf', icon: Scissors, i18nKey: 'split-pdf', status: 'live' },
   { slug: 'compress-pdf', icon: Minimize2, i18nKey: 'compress-pdf', status: 'live' },
+  { slug: 'receipt-sheet', icon: Printer, i18nKey: 'receipt-sheet', status: 'live' },
   { slug: 'rotate-pdf', icon: RotateCw, i18nKey: 'rotate-pdf', status: 'live' },
   { slug: 'organize-pdf', icon: LayoutGrid, i18nKey: 'organize-pdf', status: 'live' },
   { slug: 'remove-pages', icon: FileMinus, i18nKey: 'remove-pages', status: 'live' },
@@ -63,7 +69,6 @@ export const tools: Tool[] = [
   { slug: 'pdf-to-markdown', icon: FileText, i18nKey: 'pdf-to-markdown', status: 'live' },
   { slug: 'qr-code', icon: QrCode, i18nKey: 'qr-code', status: 'live' },
   { slug: 'ocr-pdf', icon: ScanText, i18nKey: 'ocr-pdf', status: 'live' },
-  { slug: 'receipt-sheet', icon: Printer, i18nKey: 'receipt-sheet', status: 'live' },
 ];
 
 /** Live tools, derived from the central registry. */
