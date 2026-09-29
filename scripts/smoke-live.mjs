@@ -45,10 +45,11 @@ async function req(pathOrUrl, opts = {}) {
   // GET responses are read in full (the checks parse HTML/XML out of them);
   // HEAD carries headers only, so asking for a body there is pointless.
   const wantBody = opts.body ?? method !== 'HEAD';
-  // One retry on a transport error: a dropped connection is a property of the
-  // network this script runs on, not of the deployment, and a flaky gate is a
-  // gate nobody trusts.
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  // A few retries on transport errors: a dropped connection is a property of the
+  // network this script runs on, not of the deployment, and a flaky gate is a gate
+  // nobody trusts. Backing off between tries matters — blips last longer than 400ms.
+  const attempts = 3;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const res = await fetch(url, {
         method,
@@ -62,8 +63,8 @@ async function req(pathOrUrl, opts = {}) {
       if (!wantBody) await res.body?.cancel().catch(() => {});
       return { url, status: res.status, headers, body };
     } catch (err) {
-      if (attempt === 1) return { url, status: 0, headers: {}, body: '', error: String(err.cause?.message ?? err.message ?? err) };
-      await new Promise((r) => setTimeout(r, 400));
+      if (attempt === attempts - 1) return { url, status: 0, headers: {}, body: '', error: String(err.cause?.message ?? err.message ?? err) };
+      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
     }
   }
   return { url, status: 0, headers: {}, body: '', error: 'unreachable' };
@@ -168,6 +169,8 @@ console.log('\n4. caching');
     ['hashed script is immutable for a year', chunk, /max-age=31536000/, false],
     ['stylesheet is immutable for a year', css, /max-age=31536000/, false],
     ['pdf engine wasm is cached for days', '/wasm/gs-0.0.2.wasm', /max-age=(2592000|31536000)/, false],
+    ['OCR data revalidates daily (filenames carry no version)', '/tesseract/eng.traineddata.gz', /max-age=86400/, false],
+    ['PWA icons are cached for days', '/icons/icon-192.png', /max-age=2592000/, false],
     ['service worker always revalidates', '/sw.js', /no-cache/, false],
     ['html always revalidates', '/', /max-age=0/, false],
   ];
