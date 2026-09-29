@@ -133,7 +133,7 @@ export function GuidePage({ guide }: GuidePageProps) {
       ) : null}
 
       <section className="mt-12">
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">概要</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">かんたんな手順</h2>
         <ol className="mt-6 list-decimal space-y-3 pl-6 text-slate-700">
           {guide.quickSteps.map((step, index) => (
             <li key={index} className="leading-relaxed">
