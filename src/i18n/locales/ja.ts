@@ -1413,7 +1413,7 @@ export const ja = {
       intro:
         'リンクやテキストを入力・貼り付けすると、入力中にQRコードが現れます。完全にあなたのデバイスで生成され、どこにも送信されません。',
       inputLabel: '内容',
-      inputPlaceholder: 'https://example.com — または任意のテキスト…',
+      inputPlaceholder: 'https://example.com（または任意のテキスト）',
       sizeLabel: 'サイズ',
       levelLabel: '誤り訂正',
       levels: {

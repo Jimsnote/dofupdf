@@ -98,7 +98,7 @@ export const howToUnlockPdf: Guide = {
     {
       heading: 'ファイルサイズ制限を超える場合',
       paragraphs: [
-        'ロック解除は文書全体をデバイスのメモリに上げて処理するため、デスクトップ100MB、モバイル50MBの制限があります。超大型のファイルは、無料のqpdfコマンドラインツールでオフラインなら同じ作業をサイズ制限なく処理できます。qpdf --decrypt --password=YOURS in.pdf out.pdf — DofuPDFがWebAssemblyにコンパイルしているまさにそのqpdfです。',
+        'ロック解除は文書全体をデバイスのメモリに上げて処理するため、デスクトップ100MB、モバイル50MBの制限があります。超大型のファイルは、無料のqpdfコマンドラインツールでオフラインなら同じ作業をサイズ制限なく処理できます。qpdf --decrypt --password=YOURS in.pdf out.pdf。これはDofuPDFがWebAssemblyにコンパイルしているまさにそのqpdfです。',
       ],
     },
   ],
