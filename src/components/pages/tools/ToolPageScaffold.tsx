@@ -34,7 +34,8 @@ export type ToolSlug =
   | 'qr-code'
   | 'ocr-pdf'
   | 'receipt-sheet'
-  | 'hanko-pdf';
+  | 'hanko-pdf'
+  | 'invoice-rename';
 
 interface ToolPageScaffoldProps {
   locale: Locale;
