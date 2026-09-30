@@ -14,7 +14,7 @@ Don't take our word for it: disconnect from the internet after a page loads and 
 
 ## Tools
 
-All 23 tools run 100% locally in your browser — no uploads, no sign-up, free forever:
+All 26 tools run 100% locally in your browser — no uploads, no sign-up, free forever. Browse them by category at [/tools/](https://dofupdf.com/tools/):
 
 - **Merge PDF** — combine multiple PDFs into a single file, in the order you want
 - **Split PDF** — extract a page range or split one PDF into separate documents
@@ -38,6 +38,9 @@ All 23 tools run 100% locally in your browser — no uploads, no sign-up, free f
 - **Excel to Markdown** — turn spreadsheet sheets into Markdown tables
 - **QR Code** — generate QR codes entirely offline
 - **OCR PDF** — recognize text in scanned PDFs with Tesseract (English + Japanese)
+- **Hanko Seal (押印)** — stamp a Japanese hanko seal image onto PDF pages, with 契印/割り印 (cross-page seal) placement for contracts
+- **Invoice Rename (請求書リネーム)** — batch-rename invoice/receipt PDFs into a tidy filing convention, with data read from the documents
+- **PDF Check** — pre-submission preflight: searchable text layer, encryption, page size, PDF version and other common rejection reasons, explained in plain Japanese
 - **Receipt Sheet (領収書まとめ印刷)** — lay out many receipt/invoice PDF pages on a single A4 sheet for printing, with margins, a binding allowance and optional cut guides
 
 ## Tech stack
@@ -52,16 +55,21 @@ All 23 tools run 100% locally in your browser — no uploads, no sign-up, free f
 ## Local development
 
 ```bash
-npm install        # install dependencies (+ copy wasm/OCR assets into public/)
-npm run dev        # dev server on http://localhost:3000
-npm run build      # static export to out/
-npm run lint       # ESLint (next/core-web-vitals)
-npm run type-check # tsc --noEmit
+npm install          # install dependencies (+ copy wasm/OCR assets into public/)
+npm run dev          # dev server on http://localhost:3000
+npm run build        # static export to out/
+npm run lint         # ESLint (next/core-web-vitals)
+npm run type-check   # tsc --noEmit
+npm run check:lang   # Japanese copy language gate (no foreign tokens leaking in)
+npm run check:copy   # copy baseline guard (scripts/copy-baseline.json)
 ```
 
 ## Deployment (Cloudflare Workers Static Assets)
 
-- **Config:** `wrangler.jsonc` (assets → `./out`), deploy with `npx wrangler deploy`
+- **Config:** `wrangler.jsonc` (assets → `./out`), deploy with `npx wrangler deploy` — or just push to `main`: GitHub integration (Cloudflare Workers Builds) auto-deploys
+- ⚠️ **Never delete `wrangler.jsonc`**: without it, Wrangler misdetects a full-stack Next.js app and injects the OpenNext adapter, which always fails for a static export
+- ⚠️ **Never delete the search-engine verification files** in `public/`: `BingSiteAuth.xml` (Bing Webmaster auth) and `58395c2f24c9698dc16736b1d5933a51.txt` (IndexNow key; deleting it makes IndexNow submissions 403)
+- After each deploy: `npm run smoke:live` (48 live checks: redirects, security headers, cache policy, 404s, sitemap URLs). After adding/changing pages: `npm run indexnow` (full submit needs `npm run build` first; Google does not participate in IndexNow — use GSC’s indexing request)
 - No environment variables are required. Optional ones (see `.env.example`):
   - `NEXT_PUBLIC_SITE_URL` — canonical URL used for metadata/sitemap (default `https://dofupdf.com`)
   - `NEXT_PUBLIC_GITHUB_URL` — GitHub link target (default `https://github.com/Jimsnote/dofupdf`)
@@ -74,7 +82,7 @@ npm run type-check # tsc --noEmit
 ```
 src/
 ├── app/(ja)/               # all routes (root path, Japanese): layout, home, about/privacy/terms/faq,
-│                           # 23 tool pages, guides/, compare/
+│                           # 26 tool pages, /tools category index, guides/, compare/
 ├── app/sitemap.ts          # derived from the live tools in lib/tools.ts — no hardcoding
 ├── app/robots.ts           # allow all + explicit AI-crawler rules
 ├── components/
@@ -90,8 +98,8 @@ src/
 ├── lib/
 │   ├── site.ts             # SITE_NAME / SITE_URL / GITHUB_URL / CONTACT_EMAIL (env-overridable)
 │   ├── seo.ts              # buildAlternates(), pageMetadata()
-│   ├── tools.ts            # tool registry (23 tools, status flags)
-│   ├── guides/             # tutorial content system (18 guides, one data file each)
+│   ├── tools.ts            # tool registry (26 tools, status flags, 6 categories driving the /tools index)
+│   ├── guides/             # tutorial content system (21 guides, one data file each)
 │   ├── compare/            # competitor comparison pages (dofupdf-vs-ilovepdf / -smallpdf / -sejda)
 │   └── pdf/                # pure processing layer (React-free, testable in Node)
 └── workers/                # Web Workers for heavy wasm engines
