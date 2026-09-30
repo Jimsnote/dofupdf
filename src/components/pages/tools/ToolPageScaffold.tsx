@@ -35,7 +35,8 @@ export type ToolSlug =
   | 'ocr-pdf'
   | 'receipt-sheet'
   | 'hanko-pdf'
-  | 'invoice-rename';
+  | 'invoice-rename'
+  | 'pdf-check';
 
 interface ToolPageScaffoldProps {
   locale: Locale;

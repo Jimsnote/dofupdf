@@ -24,6 +24,7 @@ import {
   ScanText,
   Fingerprint,
   Receipt,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 import type { Dictionary } from '@/i18n/locales/ja';
@@ -66,6 +67,7 @@ export const tools: Tool[] = [
   { slug: 'sign-pdf', icon: Signature, i18nKey: 'sign-pdf', status: 'live' },
   { slug: 'hanko-pdf', icon: Fingerprint, i18nKey: 'hanko-pdf', status: 'live' },
   { slug: 'invoice-rename', icon: Receipt, i18nKey: 'invoice-rename', status: 'live' },
+  { slug: 'pdf-check', icon: ShieldCheck, i18nKey: 'pdf-check', status: 'live' },
   { slug: 'protect-pdf', icon: Lock, i18nKey: 'protect-pdf', status: 'live' },
   { slug: 'unlock-pdf', icon: LockOpen, i18nKey: 'unlock-pdf', status: 'live' },
   { slug: 'watermark-pdf', icon: Stamp, i18nKey: 'watermark-pdf', status: 'live' },
