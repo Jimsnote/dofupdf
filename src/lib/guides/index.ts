@@ -17,11 +17,14 @@ import { howToRemovePagesFromPdf } from './how-to-remove-pages-from-pdf';
 import { howToRotatePdf } from './how-to-rotate-pdf';
 import { howToSplitPdf } from './how-to-split-pdf';
 import { howToUnlockPdf } from './how-to-unlock-pdf';
+import { howToAddHankoSealToPdf } from './how-to-add-hanko-seal-to-pdf';
+import { howToRenameInvoicePdfs } from './how-to-rename-invoice-pdfs';
+import { howToCheckPdfBeforeSubmitting } from './how-to-check-pdf-before-submitting';
 
 /**
- * Central guide registry, in display order. Guides are Korean-only and are
- * rendered at /guides/<slug>/; the sitemap and both guide routes derive from
- * this list, so adding a guide here is enough to publish it.
+ * Central guide registry, in display order. Guides are Japanese long-form
+ * tutorials rendered at /guides/<slug>/; the sitemap and both guide routes
+ * derive from this list, so adding a guide here is enough to publish it.
  */
 export const guides: Guide[] = [
   howToMergePdf,
@@ -38,6 +41,9 @@ export const guides: Guide[] = [
   howToAddWatermarkToPdf,
   howToAddPageNumbersToPdf,
   howToPrintReceiptsOnOneA4,
+  howToAddHankoSealToPdf,
+  howToRenameInvoicePdfs,
+  howToCheckPdfBeforeSubmitting,
   howToConvertPdfToMarkdown,
   howToConvertDocxToMarkdown,
   howToConvertXlsxToMarkdown,
