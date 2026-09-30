@@ -18,6 +18,7 @@ export const TOOL_CHAINS: Partial<Record<ToolKey, ToolKey[]>> = {
   'watermark-pdf': ['compress-pdf', 'protect-pdf', 'page-numbers', 'merge-pdf'],
   'page-numbers': ['compress-pdf', 'protect-pdf', 'watermark-pdf', 'merge-pdf'],
   'sign-pdf': ['compress-pdf', 'protect-pdf', 'merge-pdf', 'page-numbers'],
+  'hanko-pdf': ['compress-pdf', 'protect-pdf', 'merge-pdf', 'page-numbers'],
   'jpg-to-pdf': ['receipt-sheet', 'compress-pdf', 'merge-pdf', 'protect-pdf'],
   'heic-to-pdf': ['compress-pdf', 'jpg-to-pdf', 'merge-pdf', 'protect-pdf'],
   'ocr-pdf': ['pdf-to-markdown', 'receipt-sheet', 'compress-pdf', 'protect-pdf'],

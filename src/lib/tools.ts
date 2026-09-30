@@ -22,6 +22,7 @@ import {
   ImagePlus,
   QrCode,
   ScanText,
+  Fingerprint,
   type LucideIcon,
 } from 'lucide-react';
 import type { Dictionary } from '@/i18n/locales/ja';
@@ -62,6 +63,7 @@ export const tools: Tool[] = [
   { slug: 'jpg-to-pdf', icon: FileImage, i18nKey: 'jpg-to-pdf', status: 'live' },
   { slug: 'heic-to-pdf', icon: ImagePlus, i18nKey: 'heic-to-pdf', status: 'live' },
   { slug: 'sign-pdf', icon: Signature, i18nKey: 'sign-pdf', status: 'live' },
+  { slug: 'hanko-pdf', icon: Fingerprint, i18nKey: 'hanko-pdf', status: 'live' },
   { slug: 'protect-pdf', icon: Lock, i18nKey: 'protect-pdf', status: 'live' },
   { slug: 'unlock-pdf', icon: LockOpen, i18nKey: 'unlock-pdf', status: 'live' },
   { slug: 'watermark-pdf', icon: Stamp, i18nKey: 'watermark-pdf', status: 'live' },

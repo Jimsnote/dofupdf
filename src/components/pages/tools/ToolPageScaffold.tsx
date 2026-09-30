@@ -33,7 +33,8 @@ export type ToolSlug =
   | 'sign-pdf'
   | 'qr-code'
   | 'ocr-pdf'
-  | 'receipt-sheet';
+  | 'receipt-sheet'
+  | 'hanko-pdf';
 
 interface ToolPageScaffoldProps {
   locale: Locale;
