@@ -6,7 +6,7 @@ import { tools } from '@/lib/tools';
 
 /**
  * Guides index (/guides/): one card per guide with its title, a one-line
- * summary, and a link to the associated tool. The site is Korean-only.
+ * summary, and a link to the associated tool. The site is Japanese-only.
  */
 export function GuidesIndexPage() {
   const dict = getDictionary('ja');

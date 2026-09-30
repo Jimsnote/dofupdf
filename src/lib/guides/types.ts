@@ -26,7 +26,7 @@ export interface GuideFaq {
 
 /**
  * A guide is pure data: components/pages/guides/GuidePage.tsx renders it into
- * a full tutorial page. Guides are Korean-only, live at /guides/<slug>/, and
+ * a full tutorial page. Guides are Japanese-only, live at /guides/<slug>/, and
  * carry no localized alternates.
  *
  * Copy conventions: paragraphs, quick steps and intro support inline links

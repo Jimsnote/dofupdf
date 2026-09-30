@@ -53,7 +53,7 @@ interface ToolPageScaffoldProps {
  */
 export function ToolPageScaffold({ locale, dict, slug, children }: ToolPageScaffoldProps) {
   const copy = dict.toolPages[slug];
-  // Korean-only long-form tutorial attached to this tool, if one exists.
+  // Japanese-only long-form tutorial attached to this tool, if one exists.
   const guide = getGuideForTool(slug);
   // Tool-specific FAQs plus the site-wide shared ones (e.g. usage limits).
   const faqItems = [...copy.faq, ...dict.sharedToolFaq];

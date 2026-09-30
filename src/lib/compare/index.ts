@@ -4,7 +4,7 @@ import { dofuPdfVsSejda } from './dofupdf-vs-sejda';
 import { dofuPdfVsSmallpdf } from './dofupdf-vs-smallpdf';
 
 /**
- * Central registry for /compare/ pages (Korean-only). Adding a page here is
+ * Central registry for /compare/ pages (Japanese-only). Adding a page here is
  * enough to publish it: the compare routes and sitemap derive from this list.
  */
 export const compares: Compare[] = [dofuPdfVsIlovepdf, dofuPdfVsSmallpdf, dofuPdfVsSejda];

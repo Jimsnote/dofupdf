@@ -40,7 +40,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }
   }
 
-  // Korean-only guides (index + one URL per registered guide), derived from
+  // Japanese-only guides (index + one URL per registered guide), derived from
   // the registry. No hreflang alternates: guides have no localized versions.
   const guidePaths = ['/guides', ...guides.map((guide) => `/guides/${guide.slug}`)];
   for (const path of guidePaths) {
@@ -51,7 +51,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     });
   }
 
-  // Korean-only compare pages, derived from the registry.
+  // Japanese-only compare pages, derived from the registry.
   const comparePaths = ['/compare', ...compares.map((compare) => `/compare/${compare.slug}`)];
   for (const path of comparePaths) {
     entries.push({

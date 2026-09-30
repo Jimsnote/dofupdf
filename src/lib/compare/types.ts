@@ -1,5 +1,5 @@
 /**
- * Data model for the /compare/ pages (Korean-only, like the guides).
+ * Data model for the /compare/ pages (Japanese-only, like the guides).
  * One file per comparison in this folder; the registry in index.ts publishes it.
  */
 export interface CompareRow {
