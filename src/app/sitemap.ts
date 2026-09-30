@@ -7,7 +7,7 @@ import { tools } from '@/lib/tools';
 
 export const dynamic = 'force-static';
 
-const staticPaths = ['', '/about', '/privacy', '/terms', '/faq'];
+const staticPaths = ['', '/about', '/privacy', '/terms', '/faq', '/tools'];
 
 /** Live tool pages, derived from the central registry. */
 const toolPaths = tools

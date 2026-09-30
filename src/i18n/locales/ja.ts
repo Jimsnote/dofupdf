@@ -29,6 +29,22 @@ export const ja = {
   common: {
     comingSoon: '近日公開',
   },
+  toolsIndex: {
+    metaTitle: 'すべての機能 — 目的別に探すPDFツール一覧 | DofuPDF',
+    metaDescription:
+      '結合・分割・圧縮から変換、署名・押印、保護、会計・実務まで、DofuPDFの全PDFツールをカテゴリ別に一覧で確認できます。すべてブラウザ内で完結し、アップロードも登録も不要です。',
+    heading: 'すべての機能',
+    subheading:
+      '{count} 種のツールを目的別に分類しました。使いたい機能を選ぶと、そのページでそのまま作業を始められます。',
+    categories: {
+      organize: 'ページの編集・整理',
+      convert: '変換・書き出し',
+      stamp: '署名・押印・透かし',
+      security: '保護・セキュリティ',
+      business: '会計・実務・最適化',
+      other: 'その他',
+    },
+  },
   home: {
     metaTitle: 'プライバシーを守る無料PDFツール | DofuPDF',
     metaDescription:
