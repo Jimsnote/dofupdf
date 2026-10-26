@@ -8,6 +8,7 @@ import { pdfToMarkdown } from '@/lib/pdf/pdf-to-markdown';
 import { ocrPdf } from '@/lib/pdf/ocr';
 import { PdfToolError } from '@/lib/pdf/errors';
 import {
+  csvCell,
   dedupeNames,
   formatDateForDisplay,
   needsReview,
@@ -45,6 +46,8 @@ interface Result {
 const MAX_FILES = 20;
 const DESKTOP_MAX_BYTES = 100 * 1024 * 1024;
 const MOBILE_MAX_BYTES = 50 * 1024 * 1024;
+const TOTAL_MAX_MB = 200;
+const TOTAL_MAX_BYTES = TOTAL_MAX_MB * 1024 * 1024;
 const OCR_DPI = 200;
 const DEFAULT_TEMPLATE = '{{date}}_{{amount}}_{{vendor}}';
 const noop = () => {};
@@ -59,11 +62,6 @@ function ymdToIso(ymd: string | null): string {
   return `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`;
 }
 
-/** CSV の一セルを RFC4180 に従いエスケープ。 */
-function csvCell(value: string): string {
-  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-}
-
 export function InvoiceRenameTool({ dict }: InvoiceRenameToolProps) {
   const ui = dict.toolUi;
   const copy = dict.toolPages['invoice-rename'];
@@ -73,7 +71,6 @@ export function InvoiceRenameTool({ dict }: InvoiceRenameToolProps) {
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
   const [maxSizeBytes, setMaxSizeBytes] = useState(DESKTOP_MAX_BYTES);
   const [busy, setBusy] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
 
@@ -130,6 +127,13 @@ export function InvoiceRenameTool({ dict }: InvoiceRenameToolProps) {
       setError(ui.errors.tooManyFiles.replace('{max}', String(MAX_FILES)));
     }
     if (accepted.length === 0) return;
+    const totalBytes =
+      rows.reduce((sum, row) => sum + row.file.size, 0) +
+      accepted.reduce((sum, file) => sum + file.size, 0);
+    if (totalBytes > TOTAL_MAX_BYTES) {
+      setError(ui.errors.totalTooLarge.replace('{max}', String(TOTAL_MAX_MB)));
+      return;
+    }
     const created: Row[] = accepted.map((file) => ({
       id: nextId.current++,
       file,
@@ -139,12 +143,11 @@ export function InvoiceRenameTool({ dict }: InvoiceRenameToolProps) {
       vendor: '',
     }));
     setRows((prev) => [...prev, ...created]);
-    setAnalyzing(true);
     // OCR ワーカーの同時起動を避けるため、追加分は1件ずつ順に流す。
+    // 1件の失敗で後続が止まらないよう、チェーン上の拒否はここで畳む。
     for (const row of created) {
-      queue.current = queue.current.then(() => analyze(row.id, row.file));
+      queue.current = queue.current.then(() => analyze(row.id, row.file).catch(() => {}));
     }
-    queue.current = queue.current.then(() => setAnalyzing(false));
   }
 
   function removeRow(id: number) {
@@ -171,6 +174,9 @@ export function InvoiceRenameTool({ dict }: InvoiceRenameToolProps) {
 
   const reviewCount = rows.filter((row) => needsReview({ date: row.date, amount: row.amount, vendor: null })).length;
 
+  // 解析中かどうかは行の状態から派生させる（共有フラグだと失敗時に stuck する）。
+  const analyzing = rows.some((row) => row.status === 'loading' || row.status === 'ocr');
+
   async function applyVendorToAll() {
     const v = batchVendor.trim();
     setResult(null);
@@ -181,6 +187,7 @@ export function InvoiceRenameTool({ dict }: InvoiceRenameToolProps) {
     if (rows.length === 0) return;
     setBusy(true);
     setError(null);
+    setResult(null);
     try {
       const zip = new JSZip();
       const ledger: string[] = [
