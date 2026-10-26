@@ -7,6 +7,7 @@ import {
   renderSignature,
   type DecodedSignature,
 } from '@/lib/pdf/signature-image';
+import { PdfToolError } from '@/lib/pdf/errors';
 
 interface SignatureImageUploadCopy {
   choose: string;
@@ -16,6 +17,8 @@ interface SignatureImageUploadCopy {
   strength: string;
   empty: string;
   error: string;
+  /** Optional over-budget message; falls back to `error` when absent. */
+  tooLarge?: string;
 }
 
 interface SignatureImageUploadProps {
@@ -74,12 +77,16 @@ export function SignatureImageUpload({ onChange, copy }: SignatureImageUploadPro
       setFileName(file.name);
       setRemoveBg(nextRemoveBg);
       await apply(decoded, nextRemoveBg, threshold);
-    } catch {
+    } catch (err) {
       setSource(null);
       setFileName(null);
       setPreview(null);
       onChange(null);
-      setError(copy.error);
+      setError(
+        err instanceof PdfToolError && err.code === 'image-too-large'
+          ? copy.tooLarge ?? copy.error
+          : copy.error,
+      );
     } finally {
       setBusy(false);
     }

@@ -748,6 +748,7 @@ export const ja = {
       uploadEmpty: '背景除去後に何も残りませんでした。強度を下げてください。',
       uploadError:
         '画像を読み込めません。署名のPNGまたはJPG写真をお試しください（iPhoneのHEICも動作します）。',
+      uploadTooLarge: '画像が大きすぎます。20MB以内、4000万画素以下の画像でお試しください。',
       stepsHeading: 'PDFに署名する方法',
       steps: [
         '署名するPDFをアップロードしてください。ローカルで開かれ、サーバーには送信されません。',

@@ -42,6 +42,8 @@ interface Stamp {
 
 interface PageView {
   dataUrl: string;
+  /** 1-based page this view was actually rendered from. */
+  pageNumber: number;
   /** Scale-1 viewport size (rotation applied). */
   vw: number;
   vh: number;
@@ -107,38 +109,56 @@ export function SignPdfTool({ dict }: SignPdfToolProps) {
     };
   }, [pdfDoc]);
 
-  // Render the current page preview whenever the doc or page changes.
+  // Render the current page preview whenever the doc or page changes. The
+  // render task is cancelled on page switches, failures surface localized
+  // through the shared error mapping, and the produced pageView keeps the
+  // pageNumber it belongs to so stale geometry can never be used for
+  // placing, dragging or exporting on a different page.
   useEffect(() => {
     let cancelled = false;
+    let renderTask: { readonly promise: Promise<unknown>; cancel(): void } | null = null;
     if (!pdfDoc) {
       setPageView(null);
       return undefined;
     }
     void (async () => {
-      const page = await pdfDoc.doc.getPage(currentPage);
-      const viewport = page.getViewport({ scale: 1 });
-      const scale = Math.min(2, 1400 / viewport.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.floor(viewport.width * scale);
-      canvas.height = Math.floor(viewport.height * scale);
-      await page.render({
-        canvas,
-        viewport: page.getViewport({ scale }),
-        background: '#ffffff',
-      }).promise;
-      if (!cancelled) {
+      try {
+        const page = await pdfDoc.doc.getPage(currentPage);
+        if (cancelled) return;
+        const viewport = page.getViewport({ scale: 1 });
+        const scale = Math.min(2, 1400 / viewport.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.floor(viewport.width * scale);
+        canvas.height = Math.floor(viewport.height * scale);
+        renderTask = page.render({
+          canvas,
+          viewport: page.getViewport({ scale }),
+          background: '#ffffff',
+        });
+        await renderTask.promise;
+        if (cancelled) return;
         setPageView({
           dataUrl: canvas.toDataURL('image/jpeg', 0.85),
+          pageNumber: currentPage,
           vw: viewport.width,
           vh: viewport.height,
           rotate: ((page.rotate % 360) + 360) % 360,
         });
+      } catch (err) {
+        if (cancelled) return;
+        // Cancelling a superseded render is the normal page-switch path.
+        const name = err instanceof Error ? err.name : '';
+        if (name === 'RenderingCancelledException' || /cancelled/i.test(name)) return;
+        setError(toolErrorMessage(err, dict));
       }
     })();
     return () => {
       cancelled = true;
+      renderTask?.cancel();
     };
-  }, [pdfDoc, currentPage]);
+    // `dict` is the page-level i18n bundle — a stable prop reference from the
+    // server component, so listing it here cannot retrigger the render effect.
+  }, [pdfDoc, currentPage, dict]);
 
   async function onFile(incoming: File) {
     setError(null);
@@ -172,16 +192,26 @@ export function SignPdfTool({ dict }: SignPdfToolProps) {
   }
 
   function addStamp() {
-    if (!signature || !pageView) return;
-    const w = Math.min(pageView.vw * 0.35, 220);
-    const h = w / signature.aspect;
+    if (!signature || !readyView) return;
+    // Fit the initial stamp on BOTH axes: a very tall signature must not
+    // overflow the page bottom (which used to pin the drag clamp at a
+    // negative bound).
+    let w = Math.min(readyView.vw * 0.35, 220);
+    let h = w / signature.aspect;
+    const maxH = readyView.vh * 0.35;
+    if (h > maxH) {
+      h = maxH;
+      w = h * signature.aspect;
+    }
+    w = Math.min(w, readyView.vw);
+    h = Math.min(h, readyView.vh);
     const stamp: Stamp = {
       id: nextId.current++,
       page: currentPage - 1,
       dataUrl: signature.dataUrl,
       aspect: signature.aspect,
-      x: (pageView.vw - w) / 2,
-      y: pageView.vh * 0.62,
+      x: (readyView.vw - w) / 2,
+      y: Math.max(0, Math.min(readyView.vh * 0.62, readyView.vh - h)),
       w,
       h,
     };
@@ -196,8 +226,8 @@ export function SignPdfTool({ dict }: SignPdfToolProps) {
     // The container keeps the page's aspect ratio, so one scale factor (from
     // width) converts both axes from CSS px to viewport units.
     return {
-      dx: ((event.clientX - drag.startX) / rect.width) * pageView!.vw,
-      dy: ((event.clientY - drag.startY) / rect.width) * pageView!.vw,
+      dx: ((event.clientX - drag.startX) / rect.width) * readyView!.vw,
+      dy: ((event.clientY - drag.startY) / rect.width) * readyView!.vw,
     };
   }
 
@@ -219,7 +249,7 @@ export function SignPdfTool({ dict }: SignPdfToolProps) {
 
   function onHandleMove(event: React.PointerEvent) {
     const drag = dragRef.current;
-    if (!drag || !pageView) return;
+    if (!drag || !readyView) return;
     const { dx, dy } = vpDelta(event);
     setStamps((prev) =>
       prev.map((s) => {
@@ -227,11 +257,15 @@ export function SignPdfTool({ dict }: SignPdfToolProps) {
         if (drag.mode === 'move') {
           return {
             ...s,
-            x: Math.min(Math.max(drag.origX + dx, 0), pageView.vw - s.w),
-            y: Math.min(Math.max(drag.origY + dy, 0), pageView.vh - s.h),
+            x: Math.min(Math.max(drag.origX + dx, 0), readyView.vw - s.w),
+            y: Math.min(Math.max(drag.origY + dy, 0), readyView.vh - s.h),
           };
         }
-        const w = Math.min(Math.max(drag.origW + dx, MIN_STAMP_W), pageView.vw - s.x);
+        // Cap the width by BOTH remaining page width and remaining page
+        // height for the fixed aspect, so h = w / aspect can never push the
+        // stamp past the bottom edge (negative clamp bound).
+        const maxW = Math.min(readyView.vw - s.x, (readyView.vh - s.y) * s.aspect);
+        const w = Math.max(Math.min(drag.origW + dx, maxW), Math.min(MIN_STAMP_W, maxW));
         return { ...s, w, h: w / s.aspect };
       }),
     );
@@ -283,30 +317,31 @@ export function SignPdfTool({ dict }: SignPdfToolProps) {
     setError(null);
     setResult(null);
     try {
-      const pngCache = new Map<string, Uint8Array>();
+      // Rotation → (exact data URL → PNG bytes). Keying on the full data URL
+      // — not its length — can never mix two different signatures that
+      // happen to encode to the same size.
+      const pngCache = new Map<number, Map<string, Uint8Array>>();
       const placements: SignaturePlacement[] = [];
       for (const stamp of stamps) {
         const page = await pdfDoc.doc.getPage(stamp.page + 1);
         const viewport = page.getViewport({ scale: 1 });
         const rotate = ((page.rotate % 360) + 360) % 360;
-        const [mediaW, mediaH] =
-          rotate === 90 || rotate === 270
-            ? [viewport.height, viewport.width]
-            : [viewport.width, viewport.height];
         const rect = displayRectToPdf(
           { x: stamp.x, y: stamp.y, width: stamp.w, height: stamp.h },
-          rotate,
-          mediaW,
-          mediaH,
+          viewport,
         );
-        const cacheKey = `${stamp.dataUrl.length}:${rotate}`;
-        let png = pngCache.get(cacheKey);
+        let byDataUrl = pngCache.get(rotate);
+        if (!byDataUrl) {
+          byDataUrl = new Map<string, Uint8Array>();
+          pngCache.set(rotate, byDataUrl);
+        }
+        let png = byDataUrl.get(stamp.dataUrl);
         if (!png) {
           png =
             rotate === 0
               ? dataUrlToBytes(stamp.dataUrl)
               : await rotateSignature(stamp.dataUrl, rotate);
-          pngCache.set(cacheKey, png);
+          byDataUrl.set(stamp.dataUrl, png);
         }
         placements.push({ page: stamp.page, rect, png });
       }
@@ -319,6 +354,11 @@ export function SignPdfTool({ dict }: SignPdfToolProps) {
       setBusy(false);
     }
   }
+
+  // The rendered pageView is only usable for placing/dragging/exporting while
+  // it belongs to the page the user is actually on; stale views (page switch
+  // mid-render) must never contribute geometry.
+  const readyView = pageView && pageView.pageNumber === currentPage ? pageView : null;
 
   const pageStamps = stamps.filter((s) => s.page === currentPage - 1);
 
@@ -391,13 +431,14 @@ export function SignPdfTool({ dict }: SignPdfToolProps) {
                     strength: copy.uploadStrength,
                     empty: copy.uploadEmpty,
                     error: copy.uploadError,
+                    tooLarge: copy.uploadTooLarge,
                   }}
                 />
               )}
               <button
                 type="button"
                 onClick={addStamp}
-                disabled={!signature || !pageView}
+                disabled={!signature || !readyView}
                 className="mt-3 inline-flex items-center gap-2 rounded-lg border border-brand-600 px-4 py-2 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Plus className="h-4 w-4" aria-hidden />
@@ -450,7 +491,7 @@ export function SignPdfTool({ dict }: SignPdfToolProps) {
                     <Loader2 className="h-6 w-6 animate-spin text-slate-400" aria-hidden />
                   </div>
                 )}
-                {pageView &&
+                {readyView &&
                   pageStamps.map((stamp) => (
                     <div
                       key={stamp.id}
@@ -465,9 +506,9 @@ export function SignPdfTool({ dict }: SignPdfToolProps) {
                         selectedId === stamp.id ? 'ring-2 ring-brand-500' : 'ring-1 ring-brand-300'
                       }`}
                       style={{
-                        left: `${(stamp.x / pageView.vw) * 100}%`,
-                        top: `${(stamp.y / pageView.vh) * 100}%`,
-                        width: `${(stamp.w / pageView.vw) * 100}%`,
+                        left: `${(stamp.x / readyView.vw) * 100}%`,
+                        top: `${(stamp.y / readyView.vh) * 100}%`,
+                        width: `${(stamp.w / readyView.vw) * 100}%`,
                         aspectRatio: `${stamp.w}/${stamp.h}`,
                       }}
                     >
