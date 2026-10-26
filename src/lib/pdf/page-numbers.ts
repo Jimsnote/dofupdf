@@ -1,5 +1,6 @@
 import { PdfToolError } from './errors';
 import { getPdfLib } from './pdf-lib';
+import { loadPdfJsDocument } from './pdfjs';
 
 export type PageNumberPosition =
   | 'top-left'
@@ -23,22 +24,28 @@ export interface PageNumberOptions {
   connector?: string;
 }
 
-/** Distance from the page edge, in points. */
+/** Distance from the page edge, in PDF points. */
 const MARGIN = 24;
 
+function normalizeRotation(angle: number): number {
+  return ((Math.round(angle) % 360) + 360) % 360;
+}
+
 /**
- * Prints a page number on every page from `startPage` onwards. Numbers are
- * Latin digits, so the standard Helvetica font is all that is needed — no
- * canvas rendering involved. The total in the 'n-of-total' format is the
- * document's page count.
+ * Prints a page number on every page from `startPage` onwards. Positioning is
+ * computed in pdf.js display space and converted back per page, so rotated,
+ * cropped, nonzero-origin and UserUnit pages keep the same visible placement.
+ * Text is counter-rotated so it remains upright after the reader applies
+ * /Rotate. The total in the 'n-of-total' format is the document's page count.
  */
 export async function addPageNumbers(
   bytes: Uint8Array,
   options: PageNumberOptions,
 ): Promise<Uint8Array> {
-  const { PDFDocument, rgb, StandardFonts } = await getPdfLib();
+  const { PDFDocument, degrees, rgb, StandardFonts } = await getPdfLib();
   const color = rgb(0.25, 0.25, 0.25);
   const doc = await PDFDocument.load(bytes);
+  const rendered = await loadPdfJsDocument(bytes);
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const pages = doc.getPages();
   const total = pages.length;
@@ -59,27 +66,46 @@ export async function addPageNumbers(
     ? Math.max(0, Math.floor(options.startNumber))
     : 0;
 
-  for (let i = firstIndex; i < total; i += 1) {
-    const page = pages[i];
-    const number = startNumber + (i - firstIndex);
-    const text =
-      options.format === 'n-of-total'
-        ? `${number} ${options.connector ?? 'of'} ${total}`
-        : `${number}`;
-    const { width, height } = page.getSize();
-    const textWidth = font.widthOfTextAtSize(text, fontSize);
+  try {
+    for (let i = firstIndex; i < total; i += 1) {
+      const page = pages[i];
+      const pdfPage = await rendered.doc.getPage(i + 1);
+      const viewport = pdfPage.getViewport({ scale: 1 });
+      const rotation = normalizeRotation(pdfPage.rotate);
+      const userUnit = pdfPage.userUnit ?? 1;
+      const margin = MARGIN * userUnit;
+      const number = startNumber + (i - firstIndex);
+      const text =
+        options.format === 'n-of-total'
+          ? `${number} ${options.connector ?? 'of'} ${total}`
+          : `${number}`;
+      const textWidth = font.widthOfTextAtSize(text, fontSize) * userUnit;
+      const fontSizeDisplay = fontSize * userUnit;
 
-    const y = options.position.startsWith('top') ? height - MARGIN - fontSize : MARGIN;
-    let x: number;
-    if (options.position.endsWith('left')) {
-      x = MARGIN;
-    } else if (options.position.endsWith('right')) {
-      x = width - MARGIN - textWidth;
-    } else {
-      x = (width - textWidth) / 2;
+      const y = options.position.startsWith('top')
+        ? margin + fontSizeDisplay
+        : viewport.height - margin;
+      let x: number;
+      if (options.position.endsWith('left')) {
+        x = margin;
+      } else if (options.position.endsWith('right')) {
+        x = viewport.width - margin - textWidth;
+      } else {
+        x = (viewport.width - textWidth) / 2;
+      }
+
+      const [pdfX, pdfY] = viewport.convertToPdfPoint(x, y);
+      page.drawText(text, {
+        x: pdfX,
+        y: pdfY,
+        size: fontSize,
+        font,
+        color,
+        rotate: degrees((360 - rotation) % 360),
+      });
     }
-
-    page.drawText(text, { x, y, size: fontSize, font, color });
+  } finally {
+    await rendered.destroy();
   }
 
   return doc.save();

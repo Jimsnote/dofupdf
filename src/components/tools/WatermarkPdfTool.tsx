@@ -9,6 +9,7 @@ import {
   type WatermarkLayout,
 } from '@/lib/pdf/watermark';
 import { warmPdfLib } from '@/lib/pdf/pdf-lib';
+import { normalizeImageForPdf } from '@/lib/pdf/image-orientation';
 import { FileDropzone } from './FileDropzone';
 import { ToolShell } from './ToolShell';
 import { ChainNext } from './ChainNext';
@@ -79,8 +80,8 @@ export function WatermarkPdfTool({ dict }: WatermarkPdfToolProps) {
         });
       } else {
         if (!imageFile) return;
-        const imageBytes = new Uint8Array(await imageFile.arrayBuffer());
-        output = await applyImageWatermark(pdfBytes, imageBytes, {
+        const normalized = await normalizeImageForPdf(imageFile);
+        output = await applyImageWatermark(pdfBytes, normalized.bytes, {
           opacity,
           layout,
           size: { kind: 'pageFraction', fraction: scale },

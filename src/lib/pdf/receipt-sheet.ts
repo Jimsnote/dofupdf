@@ -4,7 +4,7 @@ import type {
   PDFPage as SourcePage,
 } from '@cantoo/pdf-lib';
 import { PdfToolError } from './errors';
-import { getPdfLib } from './pdf-lib';
+import { getPdfLib, type PdfLib } from './pdf-lib';
 
 /** How many receipt pages are placed on one A4 sheet. */
 export type ItemsPerPage = 1 | 2 | 3 | 4 | 6 | 9;
@@ -41,7 +41,7 @@ const GRIDS: Record<ItemsPerPage, { cols: number; rows: number }> = {
   9: { cols: 3, rows: 3 },
 };
 
-/** The measured shape of one source page, in points. */
+/** The measured visible shape of one source page, in points. */
 export interface PageMeasure {
   width: number;
   height: number;
@@ -74,16 +74,13 @@ export function normalizePerPage(value: number): ItemsPerPage {
 }
 
 /**
- * Reads the shape of every page of an already loaded document: the box pdf-lib
- * will embed (the MediaBox, which knows nothing about /Rotate) plus the page's
- * own rotation normalised to 0, 90, 180 or 270.
- *
- * Shared by the layout and by the live preview, so the picture the user sees is
- * computed from the same numbers the download is built from.
+ * Reads the visible shape of every page: the CropBox is what readers display,
+ * so that—not the full MediaBox—is what the layout and live preview use. The
+ * page's own rotation is normalised to 0, 90, 180 or 270.
  */
 export function measureDocumentPages(doc: SourceDocument): PageMeasure[] {
   return doc.getPages().map((page) => {
-    const { width, height } = page.getSize();
+    const { width, height } = page.getCropBox();
     const angle = page.getRotation().angle;
     return { width, height, rotation: ((Math.round(angle) % 360) + 360) % 360 };
   });
@@ -225,6 +222,75 @@ export function computePlacements(
 }
 
 /**
+ * Makes AcroForm widgets part of the page content before embedding. Only dirty
+ * appearances are regenerated; Japanese field values must not be forced through
+ * Helvetica just because the receipt is being imposed.
+ */
+function flattenFormForEmbedding(doc: SourceDocument): void {
+  const form = doc.getForm();
+  const fields = form.getFields();
+  if (fields.length === 0) return;
+  try {
+    if (fields.some((field) => field.needsAppearancesUpdate())) {
+      form.updateFieldAppearances();
+    }
+  } catch (err) {
+    throw new PdfToolError(
+      'generic',
+      `Could not prepare form appearances: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+  form.flatten({ updateFieldAppearances: false });
+}
+
+/**
+ * Wraps a source page's content in its CropBox before page embedding. The
+ * embedder's Form XObject BBox alone is not a reliable renderer clip, and
+ * translating the crop origin can otherwise pull outside content back into
+ * the visible rectangle.
+ */
+function clipPageToCropBox(
+  doc: SourceDocument,
+  page: SourcePage,
+  operators: {
+    PDFContentStream: PdfLib['PDFContentStream'];
+    pushGraphicsState: PdfLib['pushGraphicsState'];
+    popGraphicsState: PdfLib['popGraphicsState'];
+    clip: PdfLib['clip'];
+    endPath: PdfLib['endPath'];
+    moveTo: PdfLib['moveTo'];
+    lineTo: PdfLib['lineTo'];
+    closePath: PdfLib['closePath'];
+  },
+): void {
+  const box = page.getCropBox();
+  const {
+    PDFContentStream,
+    pushGraphicsState,
+    popGraphicsState,
+    clip,
+    endPath,
+    moveTo,
+    lineTo,
+    closePath,
+  } = operators;
+  const start = PDFContentStream.of(doc.context.obj({}), [
+    pushGraphicsState(),
+    moveTo(box.x, box.y),
+    lineTo(box.x + box.width, box.y),
+    lineTo(box.x + box.width, box.y + box.height),
+    lineTo(box.x, box.y + box.height),
+    closePath(),
+    clip(),
+    endPath(),
+  ]);
+  const startRef = doc.context.register(start);
+  const end = PDFContentStream.of(doc.context.obj({}), [popGraphicsState()]);
+  const endRef = doc.context.register(end);
+  page.node.wrapContentStreams(startRef, endRef);
+}
+
+/**
  * Places one receipt per page (not per file) of the input documents onto A4
  * sheets, in the order the files were given.
  *
@@ -238,16 +304,29 @@ export async function layoutReceiptsOnA4(
   inputs: Uint8Array[],
   options: ReceiptSheetOptions,
 ): Promise<Uint8Array> {
-  const { PDFDocument, degrees, rgb, pushGraphicsState, popGraphicsState } = await getPdfLib();
+  const {
+    PDFDocument,
+    degrees,
+    rgb,
+    pushGraphicsState,
+    popGraphicsState,
+    PDFContentStream,
+    clip,
+    endPath,
+    moveTo,
+    lineTo,
+    closePath,
+  } = await getPdfLib();
 
-  // First pass: measure every page. The documents stay loaded, because
-  // `embedPdf` accepts one and that saves parsing each file twice.
+  // First pass: flatten forms, then measure the visible CropBox. The documents
+  // stay loaded so their pages can be embedded without parsing the bytes twice.
   const sources: SourceDocument[] = [];
   const items: { docIndex: number; pageIndex: number; measure: PageMeasure }[] = [];
   for (const bytes of inputs) {
     const doc = await PDFDocument.load(bytes);
     const docIndex = sources.length;
     sources.push(doc);
+    flattenFormForEmbedding(doc);
     measureDocumentPages(doc).forEach((measure, pageIndex) => {
       items.push({ docIndex, pageIndex, measure });
     });
@@ -271,6 +350,16 @@ export async function layoutReceiptsOnA4(
         if (!page.node.normalizedEntries().Contents) {
           page.pushOperators(pushGraphicsState(), popGraphicsState());
         }
+        clipPageToCropBox(doc, page, {
+          PDFContentStream,
+          pushGraphicsState,
+          popGraphicsState,
+          clip,
+          endPath,
+          moveTo,
+          lineTo,
+          closePath,
+        });
       } catch {
         // An unreadable page entry is left untouched; the real failure, if any,
         // surfaces later with a proper error instead of being guessed at here.
@@ -280,10 +369,22 @@ export async function layoutReceiptsOnA4(
 
   // Embedding all pages of a document in one call keeps them sharing one object
   // copier, so fonts and images referenced by several pages are copied once.
+  // CropBox bounding boxes prevent content outside the visible area from
+  // reappearing on the imposed sheet.
   const target = await PDFDocument.create();
   const embedded: PDFEmbeddedPage[][] = [];
   for (const doc of sources) {
-    embedded.push(await target.embedPdf(doc, doc.getPageIndices()));
+    const pages = doc.getPages();
+    const boxes = pages.map((page) => {
+      const box = page.getCropBox();
+      return {
+        left: box.x,
+        bottom: box.y,
+        right: box.x + box.width,
+        top: box.y + box.height,
+      };
+    });
+    embedded.push(await target.embedPages(pages, boxes));
   }
 
   const placements = computePlacements(
@@ -309,14 +410,39 @@ export async function layoutReceiptsOnA4(
     const radians = (placement.angle * Math.PI) / 180;
     const cos = Math.cos(radians);
     const sin = Math.sin(radians);
+    const halfWidth = placement.width / 2;
+    const halfHeight = placement.height / 2;
+    const corners = [
+      [-halfWidth, -halfHeight],
+      [halfWidth, -halfHeight],
+      [halfWidth, halfHeight],
+      [-halfWidth, halfHeight],
+    ].map(([x, y]) => ({
+      x: placement.centerX + x * cos - y * sin,
+      y: placement.centerY + x * sin + y * cos,
+    }));
 
+    // Form XObject BBox is not a reliable clip in every renderer. Clip the
+    // placed, rotated rectangle explicitly so content outside the source
+    // CropBox can never reappear on the sheet.
+    page.pushOperators(
+      pushGraphicsState(),
+      moveTo(corners[0].x, corners[0].y),
+      lineTo(corners[1].x, corners[1].y),
+      lineTo(corners[2].x, corners[2].y),
+      lineTo(corners[3].x, corners[3].y),
+      closePath(),
+      clip(),
+      endPath(),
+    );
     page.drawPage(embedded[item.docIndex]![item.pageIndex]!, {
-      x: placement.centerX - (placement.width / 2) * cos + (placement.height / 2) * sin,
-      y: placement.centerY - (placement.width / 2) * sin - (placement.height / 2) * cos,
+      x: placement.centerX - halfWidth * cos + halfHeight * sin,
+      y: placement.centerY - halfWidth * sin - halfHeight * cos,
       width: placement.width,
       height: placement.height,
       rotate: degrees(placement.angle),
     });
+    page.pushOperators(popGraphicsState());
 
     if (options.guideLines) {
       // The axis-aligned bounding box is the outline a user would cut or paste

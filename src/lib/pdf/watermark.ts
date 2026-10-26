@@ -1,5 +1,6 @@
 import type { PDFDocument, PDFImage, PDFPage } from '@cantoo/pdf-lib';
 import { getPdfLib, type PdfLib } from './pdf-lib';
+import { loadPdfJsDocument } from './pdfjs';
 
 export type WatermarkLayout = 'tile' | 'center';
 
@@ -20,13 +21,15 @@ export interface ApplyImageWatermarkOptions {
   size: WatermarkSize;
 }
 
-/** The 45° diagonal every stamp is drawn at. */
+/** The 45° diagonal every stamp shows at in display space. */
 const ROTATION = 45;
-const COS = Math.cos((ROTATION * Math.PI) / 180);
-const SIN = Math.sin((ROTATION * Math.PI) / 180);
 
 function clampOpacity(opacity: number): number {
   return Math.min(0.5, Math.max(0.05, opacity));
+}
+
+function normalizeRotation(angle: number): number {
+  return ((Math.round(angle) % 360) + 360) % 360;
 }
 
 /** Embeds PNG or JPEG bytes, detected from the magic bytes. */
@@ -37,9 +40,9 @@ function embedImage(doc: PDFDocument, bytes: Uint8Array): Promise<PDFImage> {
 }
 
 /**
- * Draws one stamp rotated 45° so that its center lands on (cx, cy). pdf-lib
- * rotates about the (x, y) origin passed to drawImage, so the origin is
- * solved backwards from the desired center.
+ * Draws one stamp so its center lands on (cx, cy) in PDF user space. pdf-lib
+ * rotates about the (x, y) origin passed to drawImage, so the origin is solved
+ * backwards from the desired center and angle.
  */
 function drawStampCentered(
   degrees: PdfLib['degrees'],
@@ -50,15 +53,19 @@ function drawStampCentered(
   width: number,
   height: number,
   opacity: number,
+  angle: number,
 ): void {
-  const x = cx - (width / 2) * COS + (height / 2) * SIN;
-  const y = cy - (width / 2) * SIN - (height / 2) * COS;
+  const radians = (angle * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const x = cx - (width / 2) * cos + (height / 2) * sin;
+  const y = cy - (width / 2) * sin - (height / 2) * cos;
   page.drawImage(image, {
     x,
     y,
     width,
     height,
-    rotate: degrees(ROTATION),
+    rotate: degrees(angle),
     opacity,
   });
 }
@@ -69,6 +76,8 @@ function drawStampCentered(
  * offscreen canvas first (system fonts, so any language works) and hands the
  * PNG over here. Layout 'center' draws a single diagonal stamp per page;
  * 'tile' repeats it on a staggered grid that overhangs the page edges.
+ * Placement is computed in pdf.js display space, then converted back, so page
+ * rotation, CropBox and UserUnit do not move or additionally rotate the stamp.
  */
 export async function applyImageWatermark(
   pdfBytes: Uint8Array,
@@ -77,35 +86,58 @@ export async function applyImageWatermark(
 ): Promise<Uint8Array> {
   const { PDFDocument, degrees } = await getPdfLib();
   const doc = await PDFDocument.load(pdfBytes);
+  const rendered = await loadPdfJsDocument(pdfBytes);
   const image = await embedImage(doc, imageBytes);
   const aspect = image.height / image.width;
   const opacity = clampOpacity(options.opacity);
 
-  for (const page of doc.getPages()) {
-    const { width: pageWidth, height: pageHeight } = page.getSize();
-    const requested =
-      options.size.kind === 'points' ? options.size.width : pageWidth * options.size.fraction;
-    // Keep a stamp inside the page even for very wide text or images.
-    const maxWidth = pageWidth * (options.layout === 'tile' ? 0.6 : 0.9);
-    const width = Math.min(requested, maxWidth);
-    const height = width * aspect;
+  try {
+    for (let pageIndex = 0; pageIndex < doc.getPageCount(); pageIndex += 1) {
+      const page = doc.getPage(pageIndex);
+      const pdfPage = await rendered.doc.getPage(pageIndex + 1);
+      const viewport = pdfPage.getViewport({ scale: 1 });
+      const rotation = normalizeRotation(pdfPage.rotate);
+      const userUnit = pdfPage.userUnit ?? 1;
+      const angle = (ROTATION - rotation + 360) % 360;
 
-    if (options.layout === 'center') {
-      drawStampCentered(degrees, page, image, pageWidth / 2, pageHeight / 2, width, height, opacity);
-    } else {
-      // The axis-aligned bounding box of a 45°-rotated stamp.
-      const bbox = (width + height) * Math.SQRT1_2;
-      const stepX = bbox + width * 0.5;
-      const stepY = bbox + Math.max(height * 3, width * 0.35);
-      let row = 0;
-      for (let cy = -bbox; cy <= pageHeight + bbox; cy += stepY) {
-        const offset = row % 2 === 0 ? 0 : stepX / 2;
-        for (let cx = -bbox + offset; cx <= pageWidth + bbox; cx += stepX) {
-          drawStampCentered(degrees, page, image, cx, cy, width, height, opacity);
+      const requested =
+        options.size.kind === 'points'
+          ? options.size.width
+          : (viewport.width * options.size.fraction) / userUnit;
+      // Constrain the 45° bounding box, not just the unrotated width, so a
+      // square stamp cannot spill past either visible edge.
+      const maxVisible =
+        (Math.min(viewport.width, viewport.height) / userUnit) *
+        (options.layout === 'tile' ? 0.6 : 0.9);
+      const maxWidth = (maxVisible * Math.SQRT2) / (1 + aspect);
+      const width = Math.min(requested, maxWidth);
+      const height = width * aspect;
+
+      if (options.layout === 'center') {
+        const [cx, cy] = viewport.convertToPdfPoint(
+          viewport.width / 2,
+          viewport.height / 2,
+        );
+        drawStampCentered(degrees, page, image, cx, cy, width, height, opacity, angle);
+      } else {
+        // Tile positions are display-space centers; each is converted back to
+        // the page's own user space before drawing.
+        const bbox = (width + height) * userUnit * Math.SQRT1_2;
+        const stepX = bbox + width * userUnit * 0.5;
+        const stepY = bbox + Math.max(height * userUnit * 3, width * userUnit * 0.35);
+        let row = 0;
+        for (let cy = -bbox; cy <= viewport.height + bbox; cy += stepY) {
+          const offset = row % 2 === 0 ? 0 : stepX / 2;
+          for (let cx = -bbox + offset; cx <= viewport.width + bbox; cx += stepX) {
+            const [pdfX, pdfY] = viewport.convertToPdfPoint(cx, cy);
+            drawStampCentered(degrees, page, image, pdfX, pdfY, width, height, opacity, angle);
+          }
+          row += 1;
         }
-        row += 1;
       }
     }
+  } finally {
+    await rendered.destroy();
   }
 
   return doc.save();
