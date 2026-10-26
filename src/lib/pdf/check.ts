@@ -16,7 +16,10 @@ export type CheckId =
   | 'scanned'
   | 'corrupt';
 
-export type CheckLevel = 'pass' | 'warn' | 'fail' | 'info';
+export type CheckLevel = 'pass' | 'warn' | 'fail' | 'info' | 'unknown';
+
+/** ページごとの内容状態（白紙・スキャン検査で記録）。 */
+export type PageState = 'text' | 'scanned' | 'blank';
 
 /** pdf-lib / pdf.js から集めた 1 ファイル分の事実。 */
 export interface PdfFacts {
@@ -28,12 +31,14 @@ export interface PdfFacts {
   version: string;
   /** オープンにパスワードを要する（暗号化・セキュリティ設定あり）。 */
   encrypted: boolean;
-  /** AcroForm のフォームフィールド数。測れなければ 0。 */
-  formFieldCount: number;
-  /** 白紙と判定したページ（0 ベース）。 */
-  blankPages: number[];
-  /** 全ページが画像のみ（テキスト層なし＝スキャン）。 */
-  scannedOnly: boolean;
+  /** AcroForm のフォームフィールド数。測れなければ null（0 とは別物）。 */
+  formFieldCount: number | null;
+  /** 白紙と判定したページ（0 ベース）。検査できなければ null（＝不明）。 */
+  blankPages: number[] | null;
+  /** 全ページが画像のみ（テキスト層なし＝スキャン）。不明なら null。 */
+  scannedOnly: boolean | null;
+  /** ページごとの内容状態。検査が完了しなければ null。 */
+  pageStates: PageState[] | null;
   /** テキスト抽出が失敗／解析不能。 */
   unreadable: boolean;
 }
@@ -90,6 +95,12 @@ export function evaluate(facts: PdfFacts, spec: CheckSpec): Finding[] {
     return findings;
   }
 
+  // ゼロページの PDF は提出物として成立しない
+  if (facts.pageCount === 0) {
+    findings.push({ id: 'pages', level: 'fail', fixSlug: null, detail: { pages: 0 } });
+    return findings;
+  }
+
   // サイズ
   if (spec.maxBytes !== undefined) {
     const over = facts.bytes > spec.maxBytes;
@@ -136,21 +147,25 @@ export function evaluate(facts: PdfFacts, spec: CheckSpec): Finding[] {
     findings.push({ id: 'security', level: 'pass', fixSlug: null });
   }
 
-  // フォームフィールド残存
-  if (facts.formFieldCount > 0) {
+  // フォームフィールド残存（測れなかった場合は unknown。パスにはしない）
+  if (facts.formFieldCount === null) {
+    findings.push({ id: 'form', level: 'unknown', fixSlug: null });
+  } else if (facts.formFieldCount > 0) {
     findings.push({
       id: 'form',
       level: spec.forbidFormFields ? 'warn' : 'info',
-      fixSlug: 'watermark-pdf',
+      fixSlug: null,
       detail: { formCount: facts.formFieldCount },
     });
   } else {
     findings.push({ id: 'form', level: 'pass', fixSlug: null });
   }
 
-  // 白紙ページ
+  // 白紙ページ（未検査・検査失敗は unknown。パスにはしない）
   if (spec.flagBlank) {
-    if (facts.blankPages.length > 0) {
+    if (facts.blankPages === null) {
+      findings.push({ id: 'blank', level: 'unknown', fixSlug: null });
+    } else if (facts.blankPages.length > 0) {
       findings.push({
         id: 'blank',
         level: 'warn',
@@ -162,7 +177,7 @@ export function evaluate(facts: PdfFacts, spec: CheckSpec): Finding[] {
     }
   }
 
-  // スキャンのみ（参考情報。解像度は測らない）
+  // スキャンのみ（参考情報。解像度は測らない。不明なら出さない）
   if (facts.scannedOnly) {
     findings.push({ id: 'scanned', level: 'info', fixSlug: 'ocr-pdf' });
   }
@@ -227,9 +242,10 @@ export function getPreset(id: string): CheckPreset {
   return CHECK_PRESETS.find((preset) => preset.id === id) ?? CHECK_PRESETS[CHECK_PRESETS.length - 1];
 }
 
-/** ファイル全体の合否サマリ（UI の見出し・色に使う）。 */
+/** ファイル全体の合否サマリ（UI の見出し・色に使う）。unknown はパスに含めない。 */
 export function summarize(findings: Finding[]): CheckLevel {
   if (findings.some((f) => f.level === 'fail')) return 'fail';
   if (findings.some((f) => f.level === 'warn')) return 'warn';
+  if (findings.some((f) => f.level === 'unknown')) return 'unknown';
   return 'pass';
 }

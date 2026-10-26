@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   AlertTriangle,
   Check,
+  HelpCircle,
   Info,
   Loader2,
   ShieldAlert,
@@ -22,6 +23,7 @@ import {
   type CheckLevel,
   type CheckSpec,
   type Finding,
+  type PageState,
   type PdfFacts,
 } from '@/lib/pdf/check';
 import { FileDropzone } from './FileDropzone';
@@ -45,8 +47,6 @@ const MAX_FILES = 10;
 const DESKTOP_MAX_BYTES = 100 * 1024 * 1024;
 const MOBILE_MAX_BYTES = 50 * 1024 * 1024;
 const MB = 1024 * 1024;
-/** 白紙・スキャン検査は先頭このページ数まで描画してサンプルする（負荷抑止）。 */
-const SCAN_PAGE_CAP = 30;
 /** 白紙判定に使う低解像度描画。 */
 const BLANK_DPI = 36;
 /** 描画面のうちインク（非白）がthis未満なら白紙とみなす。 */
@@ -68,7 +68,7 @@ async function inspectFile(file: File): Promise<PdfFacts> {
   let encrypted = false;
   let unreadable = false;
   let pageCount = -1;
-  let formFieldCount = 0;
+  let formFieldCount: number | null = null;
   // strict load が落ち、ignoreEncryption なら読める → パスワード保護あり。
   type LoadedDoc = Awaited<ReturnType<typeof PDFDocument.load>>;
   let doc: LoadedDoc | null = null;
@@ -87,44 +87,61 @@ async function inspectFile(file: File): Promise<PdfFacts> {
     try {
       formFieldCount = doc.getForm().getFields().length;
     } catch {
-      formFieldCount = 0;
+      // 測れなかった（0 個と混同しない）
+      formFieldCount = null;
     }
   }
 
-  // 白紙・スキャンは pdf.js で最努力判定（要パスワード等で開けなければ不明のまま）。
-  let blankPages: number[] = [];
-  let scannedOnly = false;
+  // 白紙・スキャンは pdf.js で全ページを順に調べる。途中で失敗したら
+  // 「不明」（null）に倒し、部分結果を全量パスとして報告しない。
+  let blankPages: number[] | null = null;
+  let scannedOnly: boolean | null = null;
+  let pageStates: PageState[] | null = null;
   if (!unreadable) {
     try {
       const { doc: pdfDoc, numPages, destroy } = await loadPdfJsDocument(bytes);
       try {
+        const blanks: number[] = [];
+        const states: PageState[] = [];
         let textChars = 0;
-        const cap = Math.min(numPages, SCAN_PAGE_CAP);
-        for (let i = 1; i <= cap; i += 1) {
+        for (let i = 1; i <= numPages; i += 1) {
           const page = await pdfDoc.getPage(i);
           const content = await page.getTextContent();
+          let pageChars = 0;
           for (const item of content.items) {
             const str = (item as { str?: string }).str;
-            if (typeof str === 'string') textChars += str.trim().length;
+            if (typeof str === 'string') pageChars += str.trim().length;
           }
+          textChars += pageChars;
           const { canvas } = await renderPageAtDpi(pdfDoc, i, BLANK_DPI);
           const ctx = canvas.getContext('2d');
-          if (ctx) {
-            const { width, height } = canvas;
-            const { data } = ctx.getImageData(0, 0, width, height);
-            let ink = 0;
-            for (let p = 0; p < data.length; p += 4) {
-              if (data[p] < 245 || data[p + 1] < 245 || data[p + 2] < 245) ink += 1;
-            }
-            if (ink / (width * height) < BLANK_INK_RATIO) blankPages.push(i - 1);
+          if (!ctx) throw new Error('no 2d context');
+          const { width, height } = canvas;
+          const { data } = ctx.getImageData(0, 0, width, height);
+          let ink = 0;
+          for (let p = 0; p < data.length; p += 4) {
+            if (data[p] < 245 || data[p + 1] < 245 || data[p + 2] < 245) ink += 1;
           }
+          const blank = ink / (width * height) < BLANK_INK_RATIO;
+          // テキストのあるページは薄くても白紙にしない（スキャン＝インクあり・
+          // テキストなし、白紙＝インクほぼ無し・テキストなし）
+          if (pageChars > 0) states.push('text');
+          else if (blank) states.push('blank');
+          else states.push('scanned');
+          if (pageChars === 0 && blank) blanks.push(i - 1);
         }
-        scannedOnly = numPages > 0 && textChars === 0;
+        blankPages = blanks;
+        pageStates = states;
+        // 全部白紙の文書を「スキャン」とは呼ばない
+        scannedOnly = numPages > 0 && textChars === 0 && blanks.length < numPages;
       } finally {
         await destroy();
       }
     } catch {
-      // pdf.js で開けない場合は白紙・スキャン検査だけスキップ。
+      // pdf.js で開けない／途中失敗 → 白紙・スキャンは不明のまま（null）。
+      blankPages = null;
+      scannedOnly = null;
+      pageStates = null;
     }
   }
 
@@ -136,6 +153,7 @@ async function inspectFile(file: File): Promise<PdfFacts> {
     formFieldCount,
     blankPages,
     scannedOnly,
+    pageStates,
     unreadable,
   };
 }
@@ -145,6 +163,7 @@ const LEVEL_STYLE: Record<CheckLevel, { ring: string; dot: string; Icon: typeof 
   warn: { ring: 'border-amber-200 bg-amber-50', dot: 'text-amber-600', Icon: AlertTriangle },
   fail: { ring: 'border-red-200 bg-red-50', dot: 'text-red-600', Icon: ShieldAlert },
   info: { ring: 'border-slate-200 bg-slate-50', dot: 'text-slate-500', Icon: Info },
+  unknown: { ring: 'border-slate-300 bg-slate-100', dot: 'text-slate-500', Icon: HelpCircle },
 };
 
 export function PdfCheckTool({ dict }: PdfCheckToolProps) {
@@ -197,7 +216,7 @@ export function PdfCheckTool({ dict }: PdfCheckToolProps) {
     setRows((prev) => [...prev, ...created]);
     // pdf.js の同時描画を避けるため、追加分は1件ずつ順に流す。
     for (const row of created) {
-      queue.current = queue.current.then(() => analyze(row.id, row.file));
+      queue.current = queue.current.then(() => analyze(row.id, row.file).catch(() => {}));
     }
   }
 
@@ -262,27 +281,30 @@ export function PdfCheckTool({ dict }: PdfCheckToolProps) {
     switch (f.id) {
       case 'size':
         return f.level === 'fail'
-          ? fill(copy.sizeOver, [['{a}', formatBytes(d.actualBytes ?? 0)], ['{limit}', formatBytes(d.limitBytes ?? 0)]])
-          : fill(copy.sizeOk, [['{a}', formatBytes(d.actualBytes ?? 0)]]);
+          ? fill(copy.sizeOver, [['a', formatBytes(d.actualBytes ?? 0)], ['limit', formatBytes(d.limitBytes ?? 0)]])
+          : fill(copy.sizeOk, [['a', formatBytes(d.actualBytes ?? 0)]]);
       case 'pages':
+        if (f.level === 'fail' && (d.pages ?? 0) === 0) return copy.pagesZero;
         return f.level === 'fail'
-          ? fill(copy.pagesOver, [['{a}', String(d.pages ?? 0)], ['{limit}', String(d.limitPages ?? 0)]])
-          : fill(copy.pagesOk, [['{a}', String(d.pages ?? 0)]]);
+          ? fill(copy.pagesOver, [['a', String(d.pages ?? 0)], ['limit', String(d.limitPages ?? 0)]])
+          : fill(copy.pagesOk, [['a', String(d.pages ?? 0)]]);
       case 'version':
         return f.level === 'pass'
-          ? fill(copy.versionOk, [['{v}', d.version ?? '?']])
-          : fill(copy.versionLow, [['{v}', d.version ?? '?'], ['{min}', d.minVersion ?? '']]);
+          ? fill(copy.versionOk, [['v', d.version ?? '?']])
+          : fill(copy.versionLow, [['v', d.version ?? '?'], ['min', d.minVersion ?? '']]);
       case 'security':
         if (!f.level || f.level === 'pass') return copy.securityOk;
         return f.level === 'fail' ? copy.securityForbid : copy.securityWarn;
       case 'form':
+        if (f.level === 'unknown') return copy.formUnknown;
         return f.level === 'pass'
           ? copy.formOk
-          : fill(copy.formNote, [['{n}', String(d.formCount ?? 0)]]);
+          : fill(copy.formNote, [['n', String(d.formCount ?? 0)]]);
       case 'blank':
+        if (f.level === 'unknown') return copy.blankUnknown;
         return f.level === 'pass'
           ? copy.blankOk
-          : fill(copy.blankNote, [['{n}', String(d.blankCount ?? 0)]]);
+          : fill(copy.blankNote, [['n', String(d.blankCount ?? 0)]]);
       case 'scanned':
         return copy.scannedNote;
       case 'corrupt':
@@ -340,7 +362,9 @@ export function PdfCheckTool({ dict }: PdfCheckToolProps) {
                               ? copy.verdictFail
                               : verdict === 'warn'
                                 ? copy.verdictWarn
-                                : copy.verdictPass}
+                                : verdict === 'unknown'
+                                  ? copy.verdictUnknown
+                                  : copy.verdictPass}
                           </span>
                         )}
                         <button
@@ -372,7 +396,7 @@ export function PdfCheckTool({ dict }: PdfCheckToolProps) {
                                       href={`/${f.fixSlug}/`}
                                       className="inline-flex items-center gap-1 font-medium text-brand-700 underline-offset-2 hover:underline"
                                     >
-                                      {fill(copy.fixWith, [['{tool}', dict.tools[f.fixSlug as keyof Dictionary['tools']]?.name ?? f.fixSlug]])}
+                                      {fill(copy.fixWith, [['tool', dict.tools[f.fixSlug as keyof Dictionary['tools']]?.name ?? f.fixSlug]])}
                                       <ArrowRight className="h-3.5 w-3.5" aria-hidden />
                                     </Link>
                                   </>
@@ -467,8 +491,8 @@ export function PdfCheckTool({ dict }: PdfCheckToolProps) {
           {rows.length > 0 && !analyzing ? (
             <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">
               {fill(copy.summaryLine, [
-                ['{files}', String(rows.length)],
-                ['{issues}', String(issueFiles)],
+                ['files', String(rows.length)],
+                ['issues', String(issueFiles)],
               ])}
             </p>
           ) : null}
