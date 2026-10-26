@@ -41,6 +41,7 @@ export type HeavyErrorCode =
   | 'corrupted'
   | 'wrong-password'
   | 'not-encrypted'
+  | 'engine-load'
   | 'generic';
 
 /** Worker → main thread. `done` transfers the result buffer back. */

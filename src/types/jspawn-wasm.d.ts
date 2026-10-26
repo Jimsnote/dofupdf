@@ -24,11 +24,13 @@ interface JspawnEmscriptenModuleOptions {
    * NOTE: the jspawn Emscripten builds IGNORE this option — their
    * getBinaryPromise() always fetches the locateFile URL. Kept here only for
    * documentation; use locateFile with a blob URL of pre-fetched bytes.
+   * The same goes for print/printErr: stdout/stderr are bound to
+   * console.log/console.warn at factory time, so diagnostics must be read
+   * through a console capture (see pdf-heavy.worker.ts), which is why those
+   * options are not declared here anymore.
    */
   wasmBinary?: ArrayBuffer;
   locateFile?: (path: string) => string;
-  print?: (text: string) => void;
-  printErr?: (text: string) => void;
 }
 
 declare module '@jspawn/ghostscript-wasm/gs.js' {
