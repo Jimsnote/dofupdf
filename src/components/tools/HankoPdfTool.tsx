@@ -6,13 +6,14 @@ import type { Dictionary } from '@/i18n/locales/ja';
 import {
   applySealRequests,
   buildSealRequests,
+  sealRectConverter,
   type HankoMode,
-  type PageSizePt,
   type SealGeometry,
+  type SealPageInfo,
   type SealSliceRequest,
 } from '@/lib/pdf/hanko';
-import { getPdfLib } from '@/lib/pdf/pdf-lib';
-import { loadPdfJsDocument, renderThumbnail, type PdfJsDocument } from '@/lib/pdf/pdfjs';
+import type { PdfPointViewport } from '@/lib/pdf/sign-pdf';
+import { canvasToBlob, loadPdfJsDocument, renderThumbnail, type PdfJsDocument } from '@/lib/pdf/pdfjs';
 import { FileDropzone } from './FileDropzone';
 import { ToolShell } from './ToolShell';
 import { ChainNext } from './ChainNext';
@@ -45,6 +46,49 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+function normalizePageRotation(angle: number): SealPageInfo['rotation'] {
+  const normalized = ((Math.round(angle) % 360) + 360) % 360;
+  if (normalized === 90 || normalized === 180 || normalized === 270) return normalized;
+  return 0;
+}
+
+function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Image decode failed'));
+    img.src = dataUrl;
+  });
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error('Data URL conversion failed'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** Counter-rotates a display-space slice so it stays upright after PDF page rotation. */
+async function rotateSliceForPdf(slice: Slice, rotation: SealSliceRequest['rotation']): Promise<Uint8Array> {
+  if (rotation === 0) return slice.bytes;
+  const img = await loadImage(slice.dataUrl);
+  const canvas = document.createElement('canvas');
+  const swap = rotation === 90 || rotation === 270;
+  canvas.width = swap ? img.height : img.width;
+  canvas.height = swap ? img.width : img.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D is not available');
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate((-rotation * Math.PI) / 180);
+  ctx.drawImage(img, -img.width / 2, -img.height / 2);
+  const blob = await canvasToBlob(canvas, 'image/png');
+  canvas.width = 0;
+  canvas.height = 0;
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
 export function HankoPdfTool({ dict }: HankoPdfToolProps) {
   const ui = dict.toolUi;
   const copy = dict.toolPages['hanko-pdf'];
@@ -53,7 +97,7 @@ export function HankoPdfTool({ dict }: HankoPdfToolProps) {
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
   const [pdfDoc, setPdfDoc] = useState<PdfJsDocument | null>(null);
   const [pageCount, setPageCount] = useState(0);
-  const [sizes, setSizes] = useState<PageSizePt[]>([]);
+  const [pageInfos, setPageInfos] = useState<SealPageInfo[]>([]);
 
   const [seal, setSeal] = useState<{ dataUrl: string; aspect: number } | null>(null);
   const [sealImage, setSealImage] = useState<HTMLImageElement | null>(null);
@@ -69,6 +113,7 @@ export function HankoPdfTool({ dict }: HankoPdfToolProps) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [maxSizeBytes, setMaxSizeBytes] = useState(MAX_SIZE_BYTES);
+  const loadSeq = useRef(0);
 
   useEffect(() => {
     if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) setMaxSizeBytes(MOBILE_MAX_BYTES);
@@ -87,46 +132,62 @@ export function HankoPdfTool({ dict }: HankoPdfToolProps) {
       setSealImage(null);
       return;
     }
-    const img = new Image();
-    img.onload = () => setSealImage(img);
-    img.src = seal.dataUrl;
-  }, [seal]);
-
-  // Load pdf-lib page dimensions (unrotated MediaBox, in pt) for geometry.
-  useEffect(() => {
-    if (!pdfBytes) {
-      setSizes([]);
-      return;
-    }
     let cancelled = false;
-    void (async () => {
-      const { PDFDocument } = await getPdfLib();
-      const doc = await PDFDocument.load(pdfBytes);
-      const next: PageSizePt[] = [];
-      for (let i = 0; i < doc.getPageCount(); i += 1) {
-        const { width, height } = doc.getPage(i).getSize();
-        next.push({ width, height });
-      }
-      if (!cancelled) setSizes(next);
-    })();
+    const img = new Image();
+    img.onload = () => {
+      if (!cancelled) setSealImage(img);
+    };
+    img.onerror = () => {
+      if (!cancelled) setError(toolErrorMessage(new Error('Image decode failed'), dict));
+    };
+    img.src = seal.dataUrl;
     return () => {
       cancelled = true;
     };
-  }, [pdfBytes]);
+  }, [seal, dict]);
 
   async function onFile(incoming: File) {
+    const loadId = ++loadSeq.current;
     setError(null);
     setResult(null);
     setFile(incoming);
     setPdfDoc(null);
+    setPdfBytes(null);
+    setPageInfos([]);
+    setPageCount(0);
+    setThumbs({});
+    setPreviewSlices({});
+    let doc: PdfJsDocument | null = null;
     try {
       const bytes = new Uint8Array(await incoming.arrayBuffer());
-      const doc = await loadPdfJsDocument(bytes);
+      if (loadId !== loadSeq.current) return;
+      doc = await loadPdfJsDocument(bytes);
+      if (loadId !== loadSeq.current) {
+        await doc.destroy();
+        return;
+      }
+      const infos: SealPageInfo[] = [];
+      for (let i = 1; i <= doc.numPages; i += 1) {
+        const page = await doc.doc.getPage(i);
+        const viewport = page.getViewport({ scale: 1 });
+        infos.push({
+          width: viewport.width,
+          height: viewport.height,
+          rotation: normalizePageRotation(page.rotate),
+        });
+      }
+      if (loadId !== loadSeq.current) {
+        await doc.destroy();
+        return;
+      }
       setPdfBytes(bytes);
       setPdfDoc(doc);
+      setPageInfos(infos);
       setPageCount(doc.numPages);
       setSeamPage(1);
     } catch (err) {
+      if (doc) await doc.destroy();
+      if (loadId !== loadSeq.current) return;
       setFile(null);
       setError(toolErrorMessage(err, dict));
     }
@@ -145,12 +206,17 @@ export function HankoPdfTool({ dict }: HankoPdfToolProps) {
     [mode, sizeMm, seal, yFrac, seamPage, pageCount, splitPct, stripPct],
   );
 
-  const requests = useMemo(
-    () => (sizes.length > 0 ? buildSealRequests(geometry, sizes) : []),
-    [geometry, sizes],
-  );
+  const layout = useMemo(() => {
+    if (pageInfos.length === 0) return { requests: [] as SealSliceRequest[], error: null as string | null };
+    try {
+      return { requests: buildSealRequests(geometry, pageInfos), error: null as string | null };
+    } catch (err) {
+      return { requests: [] as SealSliceRequest[], error: toolErrorMessage(err, dict) };
+    }
+  }, [geometry, pageInfos, dict]);
+  const requests = layout.requests;
 
-  // Crop a horizontal band [from01,to01] of the seal into a PNG slice.
+  // Crop a horizontal display-space band [from01,to01] of the seal into a PNG.
   const sliceBand = useCallback(
     async (from01: number, to01: number): Promise<Slice> => {
       if (!sealImage) throw new Error('No seal image');
@@ -159,22 +225,21 @@ export function HankoPdfTool({ dict }: HankoPdfToolProps) {
       const canvas = document.createElement('canvas');
       canvas.width = sw;
       canvas.height = sealImage.height;
-      const ctx = canvas.getContext('2d')!;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas 2D is not available');
       ctx.drawImage(sealImage, sx, 0, sw, sealImage.height, 0, 0, sw, sealImage.height);
-      const dataUrl = canvas.toDataURL('image/png');
-      const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), 'image/png'));
-      return { dataUrl, bytes: new Uint8Array(await blob.arrayBuffer()) };
+      const blob = await canvasToBlob(canvas, 'image/png');
+      canvas.width = 0;
+      canvas.height = 0;
+      return { dataUrl: await blobToDataUrl(blob), bytes: new Uint8Array(await blob.arrayBuffer()) };
     },
     [sealImage],
   );
 
-  // Preview slices, recomputed whenever the requested bands change.
+  // Preview slices are display-space bands; PDF-only counter-rotation is done
+  // in process(), so the preview always looks like the printed page.
   const [previewSlices, setPreviewSlices] = useState<Record<string, Slice>>({});
-  const bandKey = (r: SealSliceRequest) => `${r.from01.toFixed(3)}:${r.to01.toFixed(3)}`;
-  const neededBands = useMemo(
-    () => Array.from(new Set(requests.map(bandKey))).sort(),
-    [requests],
-  );
+  const bandKey = (r: SealSliceRequest) => `${r.from01.toFixed(4)}:${r.to01.toFixed(4)}`;
   useEffect(() => {
     if (!sealImage || requests.length === 0) {
       setPreviewSlices({});
@@ -182,20 +247,23 @@ export function HankoPdfTool({ dict }: HankoPdfToolProps) {
     }
     let cancelled = false;
     void (async () => {
-      const next: Record<string, Slice> = {};
-      for (const r of requests) {
-        const key = bandKey(r);
-        if (!next[key]) next[key] = await sliceBand(r.from01, r.to01);
+      try {
+        const next: Record<string, Slice> = {};
+        for (const r of requests) {
+          const key = bandKey(r);
+          if (!next[key]) next[key] = await sliceBand(r.from01, r.to01);
+        }
+        if (!cancelled) setPreviewSlices(next);
+      } catch (err) {
+        if (!cancelled) setError(toolErrorMessage(err, dict));
       }
-      if (!cancelled) setPreviewSlices(next);
     })();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sealImage, neededBands.join(','), sliceBand]);
+  }, [sealImage, requests, sliceBand, dict]);
 
-  // Thumbnails for the pages that show a seal (kiwame: seam pair, chain: first page).
+  // Preview the first seal-bearing pages without rendering a long document.
   const previewPages = useMemo(() => {
     const set = new Set<number>();
     for (const r of requests) set.add(r.page);
@@ -210,27 +278,41 @@ export function HankoPdfTool({ dict }: HankoPdfToolProps) {
     }
     let cancelled = false;
     void (async () => {
-      const next: Record<number, string> = {};
-      for (const p of previewPages) {
-        next[p] = await renderThumbnail(pdfDoc.doc, p + 1, 0, 520);
+      try {
+        const next: Record<number, string> = {};
+        for (const p of previewPages) {
+          next[p] = await renderThumbnail(pdfDoc.doc, p + 1, 0, 520);
+        }
+        if (!cancelled) setThumbs(next);
+      } catch (err) {
+        if (!cancelled) setError(toolErrorMessage(err, dict));
       }
-      if (!cancelled) setThumbs(next);
     })();
     return () => {
       cancelled = true;
     };
-  }, [pdfDoc, previewPages.join(',')]);
+  }, [pdfDoc, previewPages, dict]);
 
   async function process() {
-    if (!pdfBytes || requests.length === 0 || !sealImage) return;
+    if (!pdfBytes || !pdfDoc || requests.length === 0 || !sealImage) return;
     setBusy(true);
     setError(null);
     setResult(null);
     try {
+      const pageNumbers = Array.from(new Set(requests.map((r) => r.page)));
+      const viewports = new Map<number, PdfPointViewport>();
+      for (const pageNumber of pageNumbers) {
+        const page = await pdfDoc.doc.getPage(pageNumber + 1);
+        viewports.set(pageNumber, page.getViewport({ scale: 1 }));
+      }
       const bytes = await applySealRequests(
         pdfBytes,
         requests,
-        async (from, to) => (await sliceBand(from, to)).bytes,
+        async (request) => {
+          const slice = await sliceBand(request.from01, request.to01);
+          return rotateSliceForPdf(slice, request.rotation);
+        },
+        sealRectConverter(viewports),
       );
       const blob = pdfBlob(bytes);
       setResult({ name: 'stamped.pdf', size: blob.size, url: URL.createObjectURL(blob), blob });
@@ -241,7 +323,10 @@ export function HankoPdfTool({ dict }: HankoPdfToolProps) {
     }
   }
 
-  const canProcess = Boolean(pdfBytes && seal && requests.length > 0 && sizes.length > 0);
+  const canProcess = Boolean(
+    pdfBytes && seal && sealImage && requests.length > 0 && !layout.error && !busy,
+  );
+  const displayError = layout.error ?? error;
 
   return (
     <ToolShell
@@ -289,6 +374,7 @@ export function HankoPdfTool({ dict }: HankoPdfToolProps) {
                   strength: copy.uploadStrength,
                   empty: copy.uploadEmpty,
                   error: copy.uploadError,
+                  tooLarge: copy.uploadTooLarge,
                 }}
               />
             </div>
@@ -405,44 +491,47 @@ export function HankoPdfTool({ dict }: HankoPdfToolProps) {
               <div>
                 <p className="mb-2 text-sm font-semibold text-slate-900">{copy.previewHeading}</p>
                 <div className="flex gap-3 overflow-x-auto pb-2">
-                  {previewPages.map((p) => (
-                    <div
-                      key={p}
-                      className="relative shrink-0 overflow-hidden rounded-lg border border-slate-300 bg-slate-100"
-                      style={{ aspectRatio: `${sizes[p].width}/${sizes[p].height}`, width: 200 }}
-                    >
-                      {thumbs[p] ? (
-                        <img src={thumbs[p]} alt="" className="h-full w-full" draggable={false} />
-                      ) : (
-                        <div className="flex h-full items-center justify-center">
-                          <Loader2 className="h-5 w-5 animate-spin text-slate-400" aria-hidden />
-                        </div>
-                      )}
-                      {requests
-                        .filter((r) => r.page === p)
-                        .map((r) => {
-                          const slice = previewSlices[bandKey(r)];
-                          if (!slice) return null;
-                          return (
-                            <img
-                              key={bandKey(r)}
-                              src={slice.dataUrl}
-                              alt=""
-                              className="pointer-events-none absolute"
-                              style={{
-                                left: `${(r.rect.x / sizes[p].width) * 100}%`,
-                                top: `${((sizes[p].height - r.rect.y - r.rect.height) / sizes[p].height) * 100}%`,
-                                width: `${(r.rect.width / sizes[p].width) * 100}%`,
-                                height: `${(r.rect.height / sizes[p].height) * 100}%`,
-                              }}
-                            />
-                          );
-                        })}
-                      <span className="absolute bottom-1 right-1 rounded bg-white/80 px-1.5 text-[10px] font-medium text-slate-600">
-                        {copy.pageBadge.replace('{n}', String(p + 1))}
-                      </span>
-                    </div>
-                  ))}
+                  {previewPages.map((p) => {
+                    const page = pageInfos[p];
+                    return (
+                      <div
+                        key={p}
+                        className="relative shrink-0 overflow-hidden rounded-lg border border-slate-300 bg-slate-100"
+                        style={{ aspectRatio: `${page.width}/${page.height}`, width: 200 }}
+                      >
+                        {thumbs[p] ? (
+                          <img src={thumbs[p]} alt="" className="h-full w-full" draggable={false} />
+                        ) : (
+                          <div className="flex h-full items-center justify-center">
+                            <Loader2 className="h-5 w-5 animate-spin text-slate-400" aria-hidden />
+                          </div>
+                        )}
+                        {requests
+                          .filter((r) => r.page === p)
+                          .map((r) => {
+                            const slice = previewSlices[bandKey(r)];
+                            if (!slice) return null;
+                            return (
+                              <img
+                                key={bandKey(r)}
+                                src={slice.dataUrl}
+                                alt=""
+                                className="pointer-events-none absolute"
+                                style={{
+                                  left: `${(r.rect.x / page.width) * 100}%`,
+                                  top: `${(r.rect.y / page.height) * 100}%`,
+                                  width: `${(r.rect.width / page.width) * 100}%`,
+                                  height: `${(r.rect.height / page.height) * 100}%`,
+                                }}
+                              />
+                            );
+                          })}
+                        <span className="absolute bottom-1 right-1 rounded bg-white/80 px-1.5 text-[10px] font-medium text-slate-600">
+                          {copy.pageBadge.replace('{n}', String(p + 1))}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
@@ -453,7 +542,7 @@ export function HankoPdfTool({ dict }: HankoPdfToolProps) {
         <button
           type="button"
           onClick={() => void process()}
-          disabled={busy || !canProcess}
+          disabled={!canProcess}
           className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : null}
@@ -461,9 +550,9 @@ export function HankoPdfTool({ dict }: HankoPdfToolProps) {
         </button>
       }
       status={
-        error ? (
+        displayError ? (
           <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
+            {displayError}
           </p>
         ) : undefined
       }

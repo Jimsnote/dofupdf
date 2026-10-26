@@ -30,6 +30,7 @@ export function toolErrorMessage(err: unknown, dict: Dictionary): string {
     if (err.code === 'no-text') return errors.noText;
     // The limit is carried in the error message by the throwing lib.
     if (err.code === 'tooManyPages') return errors.tooManyPages.replace('{max}', err.message);
+    if (err.code === 'incompatiblePages') return errors.incompatiblePages;
     return errors.generic;
   }
   return errors[classifyPdfError(err)];
