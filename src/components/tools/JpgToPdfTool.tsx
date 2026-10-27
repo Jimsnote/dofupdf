@@ -69,9 +69,12 @@ export function JpgToPdfTool({ dict }: JpgToPdfToolProps) {
     try {
       // Phone photos carry an EXIF orientation tag; normalizing here (before
       // embedding) keeps auto-orientation and fit calculations correct.
-      const images: ImageInput[] = await Promise.all(
-        items.map(({ file }) => normalizeImageForPdf(file)),
-      );
+      // Sequentially, not Promise.all — a batch of high-pixel photos decoded
+      // at once can exhaust the tab's memory.
+      const images: ImageInput[] = [];
+      for (const { file } of items) {
+        images.push(await normalizeImageForPdf(file));
+      }
       const bytes = await imagesToPdf(images, orientation, fitMode);
       const blob = pdfBlob(bytes);
       setResult({ name: 'images.pdf', size: blob.size, url: URL.createObjectURL(blob), blob });

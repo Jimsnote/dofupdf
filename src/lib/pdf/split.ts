@@ -9,17 +9,26 @@ export interface SplitOutput {
 }
 
 /**
- * Upper bound for the "extract all pages" mode: every page becomes its own
- * PDFDocument held in memory until the ZIP is built, so unbounded documents
- * would exhaust the browser's memory.
+ * Upper bound on the NUMBER OF OUTPUT FILES, applied uniformly to all three
+ * split modes: every output becomes its own PDFDocument held in memory until
+ * the ZIP is built, so unbounded documents would exhaust the browser's memory.
  */
-export const SPLIT_ALL_MAX_PAGES = 500;
+export const SPLIT_MAX_OUTPUTS = 500;
+
+/** @deprecated 旧名。SPLIT_MAX_OUTPUTS を使う。 */
+export const SPLIT_ALL_MAX_PAGES = SPLIT_MAX_OUTPUTS;
 
 /** Loads a document once so the UI can validate ranges against its length. */
 export async function getPdfPageCount(bytes: Uint8Array): Promise<number> {
   const { PDFDocument } = await getPdfLib();
   const doc = await PDFDocument.load(bytes);
   return doc.getPageCount();
+}
+
+function assertSplittable(pageCount: number): void {
+  if (pageCount <= 0) {
+    throw new PdfToolError('noPages', 'The document has no pages to split');
+  }
 }
 
 async function extractSegment(
@@ -63,8 +72,9 @@ export async function splitAllPages(bytes: Uint8Array): Promise<SplitOutput[]> {
   const { PDFDocument } = await getPdfLib();
   const source = await PDFDocument.load(bytes);
   const pageCount = source.getPageCount();
-  if (pageCount > SPLIT_ALL_MAX_PAGES) {
-    throw new PdfToolError('tooManyPages', String(SPLIT_ALL_MAX_PAGES));
+  assertSplittable(pageCount);
+  if (pageCount > SPLIT_MAX_OUTPUTS) {
+    throw new PdfToolError('tooManyPages', String(SPLIT_MAX_OUTPUTS));
   }
   const outputs: SplitOutput[] = [];
   for (let i = 0; i < pageCount; i += 1) {
@@ -84,13 +94,17 @@ export async function splitByRanges(
 ): Promise<SplitOutput[]> {
   const { PDFDocument } = await getPdfLib();
   const source = await PDFDocument.load(bytes);
+  assertSplittable(source.getPageCount());
   const outputs: SplitOutput[] = [];
   const seenSegments = new Set<string>();
   const usedNames = new Set<string>();
   for (const segment of segments) {
     const key = segment.join(',');
-    if (seenSegments.has(key)) continue;
+    if (segment.length === 0 || seenSegments.has(key)) continue;
     seenSegments.add(key);
+    if (outputs.length >= SPLIT_MAX_OUTPUTS) {
+      throw new PdfToolError('tooManyPages', String(SPLIT_MAX_OUTPUTS));
+    }
     const first = segment[0] + 1;
     const last = segment[segment.length - 1] + 1;
     const name = uniqueName(
@@ -98,6 +112,9 @@ export async function splitByRanges(
       usedNames,
     );
     outputs.push(await extractSegment(source, segment, name));
+  }
+  if (outputs.length === 0) {
+    throw new PdfToolError('noPages', 'No segments to extract');
   }
   return outputs;
 }
@@ -110,6 +127,10 @@ export async function splitEveryNPages(bytes: Uint8Array, n: number): Promise<Sp
   const { PDFDocument } = await getPdfLib();
   const source = await PDFDocument.load(bytes);
   const pageCount = source.getPageCount();
+  assertSplittable(pageCount);
+  if (Math.ceil(pageCount / n) > SPLIT_MAX_OUTPUTS) {
+    throw new PdfToolError('tooManyPages', String(SPLIT_MAX_OUTPUTS));
+  }
   const outputs: SplitOutput[] = [];
   for (let start = 0; start < pageCount; start += n) {
     const end = Math.min(start + n, pageCount);

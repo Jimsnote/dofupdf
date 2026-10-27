@@ -11,6 +11,10 @@ export interface ExtractedImage {
 
 /** Hard cap so a malicious/degenerate PDF cannot fill device memory. */
 const MAX_IMAGES = 200;
+/** Per-image decoded pixel budget — larger images are skipped, not decoded. */
+const MAX_IMAGE_PIXELS = 64_000_000;
+/** Total decoded pixel budget across one extraction run. */
+const MAX_TOTAL_PIXELS = 400_000_000;
 
 interface PdfImageObject {
   /** pdf.js v6 resolves embedded images as an ImageBitmap… */
@@ -140,6 +144,7 @@ export async function extractImagesFromPdf(
     const { OPS } = await getPdfjs();
     const out: ExtractedImage[] = [];
     const seen = new Set<string>();
+    let totalPixels = 0;
 
     for (const pageIndex of indices) {
       const page = await doc.getPage(pageIndex + 1);
@@ -223,6 +228,9 @@ export async function extractImagesFromPdf(
 
       for (const { obj, key, mask } of found) {
         if (!obj || (!obj.bitmap && !obj.data) || !obj.width || !obj.height) continue;
+        // 1枚あたりの画素上限（デコード前にスキップ）
+        if (obj.width * obj.height > MAX_IMAGE_PIXELS) continue;
+        if (totalPixels + obj.width * obj.height > MAX_TOTAL_PIXELS) return out;
         // 命名画像はオブジェクト ID、inline・mask は内容ハッシュで重複排除
         const dedupeKey = key ?? contentKey(obj);
         if (dedupeKey) {
@@ -244,6 +252,7 @@ export async function extractImagesFromPdf(
           // 1枚の異常でバッチ全体を落とさない
           continue;
         }
+        totalPixels += obj.width * obj.height;
         if (out.length >= MAX_IMAGES) return out;
       }
     }

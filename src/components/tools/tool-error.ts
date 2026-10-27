@@ -34,6 +34,9 @@ export function toolErrorMessage(err: unknown, dict: Dictionary): string {
     if (err.code === 'incompatiblePages') return errors.incompatiblePages;
     if (err.code === 'archive-too-large') return errors.archiveTooLarge;
     if (err.code === 'empty-workbook') return errors.emptyWorkbook;
+    if (err.code === 'image-too-large') return errors.imageTooLarge.replace('{max}', err.message);
+    if (err.code === 'orientation-failed') return errors.orientationFailed;
+    if (err.code === 'minFiles') return errors.minFiles.replace('{min}', err.message);
     return errors.generic;
   }
   return errors[classifyPdfError(err)];

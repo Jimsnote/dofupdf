@@ -1,3 +1,4 @@
+import { PdfToolError } from './errors';
 import { getPdfLib } from './pdf-lib';
 
 export type PageOrientation = 'auto' | 'portrait' | 'landscape';
@@ -31,6 +32,9 @@ export async function imagesToPdf(
 ): Promise<Uint8Array> {
   const { PDFDocument } = await getPdfLib();
   const doc = await PDFDocument.create();
+  if (images.length === 0) {
+    throw new PdfToolError('minFiles', '1');
+  }
   const embedded = [];
   for (const image of images) {
     embedded.push(

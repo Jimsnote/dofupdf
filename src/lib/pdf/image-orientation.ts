@@ -1,4 +1,9 @@
 import type { ImageInput } from './jpg-to-pdf';
+import { PdfToolError } from './errors';
+import { readImageDimensionsHead } from './signature-image';
+
+/** Decoding budget per image: above this the canvas path would risk the tab. */
+export const MAX_IMAGE_PIXELS = 40_000_000;
 
 /**
  * Reads the EXIF orientation tag (0x0112) from JPEG bytes. Returns null for
@@ -17,6 +22,7 @@ export function readExifOrientation(bytes: Uint8Array): number | null {
     if (marker === 0xda) return null;
     if (marker === 0xe1) {
       // APP1 — the Exif header is "Exif\0\0" followed by a TIFF block.
+      // A non-Exif APP1 (XMP etc.) must NOT stop the scan: EXIF may follow.
       const start = offset + 4;
       if (
         start + 8 <= bytes.length &&
@@ -29,7 +35,6 @@ export function readExifOrientation(bytes: Uint8Array): number | null {
       ) {
         return readTiffOrientation(bytes, start + 6, offset + 2 + length);
       }
-      return null;
     }
     offset += 2 + length;
   }
@@ -71,10 +76,19 @@ function readTiffOrientation(bytes: Uint8Array, tiff: number, end: number): numb
  * (auto orientation, fit/fill/original) would be based on the wrong
  * dimensions. PNGs, unrotated JPEGs, and anything the browser fails to
  * decode pass through unchanged, preserving quality and file size.
+ *
+ * Budgets: images above MAX_IMAGE_PIXELS are rejected before decoding
+ * (image-too-large), and a rotation that cannot be applied is a hard error
+ * (orientation-failed) — silently embedding the wrong orientation is worse
+ * than failing.
  */
 export async function normalizeImageForPdf(file: File): Promise<ImageInput> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const isPng = /\.png$/i.test(file.name) || file.type === 'image/png';
+  const head = readImageDimensionsHead(bytes);
+  if (head && head.width * head.height > MAX_IMAGE_PIXELS) {
+    throw new PdfToolError('image-too-large', String(Math.round(MAX_IMAGE_PIXELS / 10000)));
+  }
   if (isPng) return { bytes, type: 'png' };
   const orientation = readExifOrientation(bytes);
   if (orientation === null || orientation === 1) {
@@ -105,9 +119,12 @@ export async function normalizeImageForPdf(file: File): Promise<ImageInput> {
     } finally {
       bitmap.close();
     }
-  } catch {
-    // No imageOrientation support (or a decode hiccup): embed as-is rather
-    // than failing the whole conversion.
-    return { bytes, type: 'jpg' };
+  } catch (err) {
+    if (err instanceof PdfToolError) throw err;
+    // 回転を適用できない環境/入力では、向きの間違った出力を黙って返さない。
+    throw new PdfToolError(
+      'orientation-failed',
+      err instanceof Error ? err.message : 'orientation correction failed',
+    );
   }
 }

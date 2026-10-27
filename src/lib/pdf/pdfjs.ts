@@ -40,9 +40,19 @@ export interface PdfJsDocument {
  * Opens a PDF with pdf.js. The bytes are copied because pdf.js transfers the
  * buffer to its worker, which would neuter the caller's copy.
  */
+/**
+ * Opens a PDF with pdf.js. The bytes are copied because pdf.js transfers the
+ * buffer to its worker, which would neuter the caller's copy.
+ *
+ * maxImageSize policy: pdf.js defaults to -1 (unlimited); we cap decoded
+ * image surfaces at 64M pixels (≈8192×8192, covers a 600dpi A4 scan).
+ * Oversized images are skipped by the renderer instead of exhausting memory.
+ */
+const MAX_IMAGE_PIXELS_PDFJS = 64 * 1024 * 1024;
+
 export async function loadPdfJsDocument(bytes: Uint8Array): Promise<PdfJsDocument> {
   const pdfjs = await getPdfjs();
-  const task = pdfjs.getDocument({ data: bytes.slice() });
+  const task = pdfjs.getDocument({ data: bytes.slice(), maxImageSize: MAX_IMAGE_PIXELS_PDFJS });
   const doc = await task.promise;
   return { doc, numPages: doc.numPages, destroy: () => task.destroy() };
 }
@@ -52,13 +62,23 @@ async function renderToCanvas(
   scale: number,
   rotation?: number,
 ): Promise<HTMLCanvasElement> {
-  const viewport = page.getViewport({
+  let viewport = page.getViewport({
     scale,
     ...(rotation !== undefined ? { rotation } : {}),
   });
+  // Extreme aspect ratios can floor to 0px, and canvas edges beyond 32767px
+  // are unreliable — clamp the scale into the safe range instead of failing.
+  const MAX_EDGE = 32767;
+  const longest = Math.max(viewport.width, viewport.height);
+  if (longest > MAX_EDGE) {
+    viewport = page.getViewport({
+      scale: scale * (MAX_EDGE / longest),
+      ...(rotation !== undefined ? { rotation } : {}),
+    });
+  }
   const canvas = document.createElement('canvas');
-  canvas.width = Math.floor(viewport.width);
-  canvas.height = Math.floor(viewport.height);
+  canvas.width = Math.max(1, Math.floor(viewport.width));
+  canvas.height = Math.max(1, Math.floor(viewport.height));
   // White background so transparent pages don't go black in JPEG output.
   await page.render({ canvas, viewport, background: '#ffffff' }).promise;
   return canvas;
