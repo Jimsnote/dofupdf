@@ -32,6 +32,8 @@ export function toolErrorMessage(err: unknown, dict: Dictionary): string {
     // The limit is carried in the error message by the throwing lib.
     if (err.code === 'tooManyPages') return errors.tooManyPages.replace('{max}', err.message);
     if (err.code === 'incompatiblePages') return errors.incompatiblePages;
+    if (err.code === 'archive-too-large') return errors.archiveTooLarge;
+    if (err.code === 'empty-workbook') return errors.emptyWorkbook;
     return errors.generic;
   }
   return errors[classifyPdfError(err)];

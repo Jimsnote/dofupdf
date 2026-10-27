@@ -1,4 +1,5 @@
 import { PdfToolError } from './errors';
+import { escapeMarkdownText } from '../markdown-safety';
 import { parsePageRanges } from './page-ranges';
 import { loadPdfJsDocument } from './pdfjs';
 
@@ -9,8 +10,13 @@ export interface SourceLine {
   size: number;
   /** Baseline y position (PDF coordinates — larger means higher up). */
   y: number;
+  /** Left edge / right edge of the line (column detection). */
+  x: number;
+  xEnd: number;
   /** 0-based page the line came from. */
   page: number;
+  /** Column gutter x when the line was split off a wider visual line. */
+  splitAt?: number;
 }
 
 export interface PdfToMarkdownOptions {
@@ -65,7 +71,10 @@ interface RawItem {
 
 /**
  * Groups a page's text items into visual lines: items whose baseline y is
- * within a small tolerance belong to the same line, ordered left to right.
+ * within a small tolerance belong to the same line. A large horizontal gap
+ * inside a line means a column break — the line is split there so columns
+ * never interleave mid-sentence, and when the split points share a stable
+ * gutter the page is reordered column-by-column.
  */
 function itemsToLines(items: unknown[], pageIndex: number): SourceLine[] {
   const raw: RawItem[] = [];
@@ -84,10 +93,13 @@ function itemsToLines(items: unknown[], pageIndex: number): SourceLine[] {
   let currentY = 0;
   let currentSize = 0;
   const flush = () => {
-    if (current.length > 0) lines.push(buildLine(current, currentY, pageIndex));
+    if (current.length > 0) {
+      for (const segment of splitAtColumnGaps(current)) {
+        lines.push(buildLine(segment, currentY, pageIndex));
+      }
+    }
     current = [];
-  };
-  for (const item of raw) {
+  };  for (const item of raw) {
     const sameLine =
       current.length > 0 && Math.abs(item.y - currentY) <= Math.max(2, currentSize * 0.3);
     if (!sameLine) flush();
@@ -100,31 +112,105 @@ function itemsToLines(items: unknown[], pageIndex: number): SourceLine[] {
     current.push(item);
   }
   flush();
-  return lines;
+  return orderColumns(lines);
+}
+
+interface Segment {
+  items: RawItem[];
+  /** 分割が起きた場合の溝位置（段の境界 x 中点）。 */
+  splitAt?: number;
 }
 
 /**
- * Joins the items of one visual line, inserting a space only where the
- * horizontal gap looks like a word boundary (pdf.js often splits a line into
- * several items mid-word).
+ * Splits one visual line at column-sized horizontal gaps (over ~4 font
+ * heights). Every segment of a split line carries the gutter position so the
+ * page-level column detector can find a stable split line.
  */
-function buildLine(items: RawItem[], y: number, pageIndex: number): SourceLine {
+function splitAtColumnGaps(items: RawItem[]): Segment[] {
   const sorted = [...items].sort((a, b) => a.x - b.x);
+  const groups: Segment[] = [];
+  let cur: RawItem[] = [];
+  let lastBoundary: number | undefined;
+  for (const item of sorted) {
+    const prev = cur[cur.length - 1];
+    if (prev) {
+      const gap = item.x - (prev.x + prev.width);
+      if (gap > Math.max(prev.size, item.size) * 4) {
+        lastBoundary = (prev.x + prev.width + item.x) / 2;
+        groups.push({ items: cur, splitAt: lastBoundary });
+        cur = [];
+      }
+    }
+    cur.push(item);
+  }
+  if (cur.length > 0) groups.push({ items: cur, splitAt: lastBoundary });
+  return groups;
+}
+
+/**
+ * Conservative two-column ordering: only when at least 3 split lines share a
+ * gutter (within tolerance) AND every line classifies cleanly as left/right
+ * (no spanning line), emit the left column top-to-bottom then the right.
+ * Anything ambiguous keeps the plain top-to-bottom order.
+ */
+function orderColumns(lines: SourceLine[]): SourceLine[] {
+  const splits = lines.filter((line) => line.splitAt !== undefined);
+  if (splits.length < 3) return lines;
+  const xs = splits.map((line) => line.splitAt ?? 0).sort((a, b) => a - b);
+  const gutter = xs[Math.floor(xs.length / 2)];
+  let maxX = 0;
+  for (const line of lines) {
+    if (line.xEnd > maxX) maxX = line.xEnd;
+  }
+  const tol = Math.max(10, maxX * 0.03);
+  const clustered = splits.filter((line) => Math.abs((line.splitAt ?? 0) - gutter) <= tol);
+  if (clustered.length < Math.ceil(splits.length * 0.6)) return lines;
+
+  const left: SourceLine[] = [];
+  const right: SourceLine[] = [];
+  for (const line of lines) {
+    if (line.xEnd <= gutter + tol) left.push(line);
+    else if (line.x >= gutter - tol) right.push(line);
+    else return lines; // spanning line — keep the conservative row order
+  }
+  if (left.length < 2 || right.length < 2) return lines;
+  return [...left, ...right];
+}
+
+/**
+ * Joins the items of one segment, inserting a space wherever the horizontal
+ * gap looks like a word boundary (pdf.js often splits a line into several
+ * items mid-word; column-sized gaps were already split before this point).
+ */
+function buildLine(segment: Segment, y: number, pageIndex: number): SourceLine {
+  const sorted = [...segment.items].sort((a, b) => a.x - b.x);
   let text = '';
   let size = 0;
+  let x = Infinity;
+  let xEnd = 0;
   let prev: RawItem | null = null;
   for (const item of sorted) {
     if (prev) {
       const gap = item.x - (prev.x + prev.width);
-      if (gap > prev.size * 0.25 && gap < prev.size * 1.5 && !text.endsWith(' ')) {
+      if (gap > prev.size * 0.25 && !text.endsWith(' ')) {
         text += ' ';
       }
     }
     text += item.str;
     size = Math.max(size, item.size);
+    if (item.x < x) x = item.x;
+    if (item.x + item.width > xEnd) xEnd = item.x + item.width;
     prev = item;
   }
-  return { text: text.replace(/\s+/g, ' ').trim(), y, size, page: pageIndex };
+  return {
+    text: text.replace(/\s+/g, ' ').trim(),
+    y,
+    size,
+    x: x === Infinity ? 0 : x,
+    xEnd,
+    page: pageIndex,
+    ...(segment.splitAt !== undefined ? { splitAt: segment.splitAt } : {}),
+  };
 }
 
 /** Heading thresholds, relative to the detected body font size. */
@@ -144,12 +230,12 @@ function headingLevel(line: SourceLine, bodySize: number): number {
 }
 
 const BULLET_RE = /^[•\-*–·▪◦]\s+/;
-const ORDERED_RE = /^\d{1,3}[.)]\s+/;
 
-/** Normalizes a list line, or returns null for non-list text. */
+/** Normalizes a list line (content escaped), or returns null for non-list text. */
 function asListItem(text: string): string | null {
-  if (BULLET_RE.test(text)) return `- ${text.replace(BULLET_RE, '')}`;
-  if (ORDERED_RE.test(text)) return text;
+  if (BULLET_RE.test(text)) return `- ${escapeMarkdownText(text.replace(BULLET_RE, ''))}`;
+  const ordered = /^(\d{1,3}[.)]\s+)(.*)$/.exec(text);
+  if (ordered) return `${ordered[1]}${escapeMarkdownText(ordered[2])}`;
   return null;
 }
 
@@ -229,7 +315,7 @@ export function pagesToMarkdown(pages: SourceLine[][]): string {
     if (level > 0) {
       flushParagraph();
       flushList();
-      blocks.push(`${'#'.repeat(level)} ${line.text}`);
+      blocks.push(`${'#'.repeat(level)} ${escapeMarkdownText(line.text)}`);
     } else if (listItem !== null) {
       flushParagraph();
       list.push(listItem);
@@ -241,7 +327,7 @@ export function pagesToMarkdown(pages: SourceLine[][]): string {
         prev.page === line.page &&
         prev.y - line.y <= prev.size * 1.6;
       if (!continues) flushParagraph();
-      paragraph.push(line.text);
+      paragraph.push(escapeMarkdownText(line.text));
     }
     prev = line;
   }
