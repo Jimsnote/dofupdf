@@ -58,20 +58,25 @@ export function FileDropzone({
   const [error, setError] = useState<string | null>(null);
   const { toolUi } = dict;
 
-  // 工具链接力接收侧：URL 带 ?from=handoff 时，从 IndexedDB 取出上一个工具的
-  // 结果文件并自动载入（一次性消费），让用户免重新上传。仅 PDF 工具参与。
+  // 工具链接力接收侧：URL 带 ?from=handoff&id=<transferId> 时，从 IndexedDB
+  // 取出上一个工具的结果文件并自动载入（一次性消费、目标绑定、24h TTL）。
+  // 文件同样走 handleIncoming 校验（类型/大小/容量），失败有本地化提示。
   useEffect(() => {
     if (accept !== 'pdf') return;
-    if (new URLSearchParams(window.location.search).get('from') !== 'handoff') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('from') !== 'handoff') return;
+    const id = params.get('id');
+    if (!id) return;
+    const slug = window.location.pathname.replace(/\//g, '');
     let cancelled = false;
-    takeHandoff()
+    takeHandoff(id, slug)
       .then((entry) => {
         if (!entry || cancelled) return;
-        onFiles([new File([entry.blob], entry.name, { type: 'application/pdf' })]);
+        handleIncoming([new File([entry.blob], entry.name, { type: 'application/pdf' })]);
         window.history.replaceState(null, '', window.location.pathname);
       })
       .catch(() => {
-        // IndexedDB 不可用等场景下静默降级为普通上传流程
+        if (!cancelled) setError(toolUi.errors.handoffFailed);
       });
     return () => {
       cancelled = true;
@@ -126,7 +131,7 @@ export function FileDropzone({
       setError(messages.join(' '));
       return;
     }
-    const capacity = maxFiles - currentCount;
+    const capacity = multiple ? maxFiles - currentCount : 1; // 单文件工具的再选择视为替换
     let accepted = valid;
     if (valid.length > capacity) {
       messages.push(toolUi.errors.tooManyFiles.replace('{max}', String(maxFiles)));
