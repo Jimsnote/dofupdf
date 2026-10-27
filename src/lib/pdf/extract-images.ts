@@ -22,6 +22,26 @@ interface PdfImageObject {
   kind?: number; // ImageKind: 1=GRAYSCALE_1BPP, 2=RGB_24BPP, 3=RGBA_32BPP
 }
 
+/**
+ * Image masks arrive from the operator list as {width, height, data} without
+ * `kind`, and `data` can be a binary string. Normalize them to 1bpp grayscale
+ * so they go through the same canvas path as decoded images.
+ */
+function normalizeMaskObject(obj: {
+  width: number;
+  height: number;
+  data?: Uint8Array | string;
+}): PdfImageObject {
+  let bytes: Uint8Array;
+  if (typeof obj.data === 'string') {
+    bytes = new Uint8Array(obj.data.length);
+    for (let i = 0; i < obj.data.length; i += 1) bytes[i] = obj.data.charCodeAt(i) & 0xff;
+  } else {
+    bytes = obj.data ?? new Uint8Array(0);
+  }
+  return { width: obj.width, height: obj.height, data: bytes, kind: 1 };
+}
+
 /** Paints a pdf.js image object onto a canvas (ImageBitmap or raw pixels). */
 function imageObjectToCanvas(obj: PdfImageObject): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
@@ -79,6 +99,21 @@ function hasTransparency(canvas: HTMLCanvasElement): boolean {
   return false;
 }
 
+/**
+ * FNV-1a over the pixel bytes — dedupes unkeyed images (inline images and
+ * masks carry no object-store key, so identical content is extracted once).
+ */
+function contentKey(obj: PdfImageObject): string | null {
+  if (!obj.data) return null;
+  let hash = 0x811c9dc5;
+  const data = obj.data;
+  for (let i = 0; i < data.length; i += 1) {
+    hash ^= data[i];
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `${obj.width}x${obj.height}:${obj.kind ?? 1}:${data.length}:${hash >>> 0}`;
+}
+
 async function canvasToBytes(canvas: HTMLCanvasElement, png: boolean): Promise<Uint8Array> {
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, png ? 'image/png' : 'image/jpeg', 0.92),
@@ -115,35 +150,64 @@ export async function extractImagesFromPdf(
       interface FoundImage {
         obj: PdfImageObject;
         key: string | null;
+        /** ステンシルマスクは透過情報を持たないが 1bpp なので PNG で出す。 */
+        mask?: boolean;
       }
       const found: FoundImage[] = [];
       const pending: Promise<void>[] = [];
+      const resolveNamed = (objId: string) => {
+        pending.push(
+          new Promise<void>((resolve) => {
+            try {
+              page.objs.get(objId, (data: PdfImageObject) => {
+                if (data) found.push({ obj: data, key: objId });
+                resolve();
+              });
+            } catch {
+              resolve(); // unresolvable reference — skip
+            }
+          }),
+        );
+      };
       for (let i = 0; i < ops.fnArray.length; i += 1) {
         const fn = ops.fnArray[i];
-        if (
-          fn !== OPS.paintImageXObject &&
-          fn !== OPS.paintImageXObjectRepeat &&
-          fn !== OPS.paintInlineImageXObject &&
-          fn !== OPS.paintImageMaskXObject
-        ) {
-          continue;
-        }
-        const arg: unknown = ops.argsArray[i][0];
-        if (typeof arg === 'string') {
-          pending.push(
-            new Promise<void>((resolve) => {
-              try {
-                page.objs.get(arg, (data: PdfImageObject) => {
-                  found.push({ obj: data, key: arg });
-                  resolve();
-                });
-              } catch {
-                resolve(); // unresolvable reference — skip
+        const args = ops.argsArray[i] ?? [];
+        // 実測した pdf.js 6.1 の引数形状（optimizer は pdf.worker.mjs 側）:
+        //   paintImageXObject        [objId, w, h]
+        //   paintImageXObjectRepeat  [objId, scaleX, scaleY, positions]（同一参照の反復）
+        //   paintInlineImageXObject  [imgData]
+        //   paintInlineImageXObjectGroup [mergedImgData, map]（連続 inline の結合済み1枚）
+        //   paintImageMaskXObject    [maskObj]
+        //   paintImageMaskXObjectRepeat [maskObj, scaleX, skewY?, scaleY, positions]（同一 mask）
+        //   paintImageMaskXObjectGroup  [maskObj[]]（異なる mask の束）
+        if (fn === OPS.paintImageXObject || fn === OPS.paintImageXObjectRepeat) {
+          const arg: unknown = args[0];
+          if (typeof arg === 'string') {
+            resolveNamed(arg);
+          } else if (arg && typeof arg === 'object') {
+            found.push({ obj: arg as PdfImageObject, key: null });
+          }
+        } else if (fn === OPS.paintInlineImageXObject || fn === OPS.paintInlineImageXObjectGroup) {
+          const arg: unknown = args[0];
+          if (arg && typeof arg === 'object') {
+            found.push({ obj: arg as PdfImageObject, key: null });
+          }
+        } else if (fn === OPS.paintImageMaskXObject || fn === OPS.paintImageMaskXObjectRepeat) {
+          const arg = args[0] as { width: number; height: number; data?: Uint8Array | string } | null;
+          if (arg && typeof arg === 'object' && arg.width && arg.height) {
+            found.push({ obj: normalizeMaskObject(arg), key: null, mask: true });
+          }
+        } else if (fn === OPS.paintImageMaskXObjectGroup) {
+          const images = args[0] as
+            | { width: number; height: number; data?: Uint8Array | string }[]
+            | null;
+          if (Array.isArray(images)) {
+            for (const m of images) {
+              if (m && m.width && m.height) {
+                found.push({ obj: normalizeMaskObject(m), key: null, mask: true });
               }
-            }),
-          );
-        } else if (arg && typeof arg === 'object') {
-          found.push({ obj: arg as PdfImageObject, key: null });
+            }
+          }
         }
       }
       const viewport = page.getViewport({ scale: 1 });
@@ -157,22 +221,29 @@ export async function extractImagesFromPdf(
       }).promise;
       await Promise.all(pending);
 
-      for (const { obj, key } of found) {
+      for (const { obj, key, mask } of found) {
         if (!obj || (!obj.bitmap && !obj.data) || !obj.width || !obj.height) continue;
-        if (key) {
-          if (seen.has(key)) continue;
-          seen.add(key);
+        // 命名画像はオブジェクト ID、inline・mask は内容ハッシュで重複排除
+        const dedupeKey = key ?? contentKey(obj);
+        if (dedupeKey) {
+          if (seen.has(dedupeKey)) continue;
+          seen.add(dedupeKey);
         }
-        const canvas = imageObjectToCanvas(obj);
-        const png = obj.bitmap ? hasTransparency(canvas) : obj.kind === 3;
-        const bytes2 = await canvasToBytes(canvas, png);
-        out.push({
-          name: `page-${pageIndex + 1}-image-${out.length + 1}.${png ? 'png' : 'jpg'}`,
-          bytes: bytes2,
-          width: obj.width,
-          height: obj.height,
-        });
-        options.onFound?.(out.length);
+        try {
+          const canvas = imageObjectToCanvas(obj);
+          const png = mask ? true : obj.bitmap ? hasTransparency(canvas) : obj.kind === 3;
+          const bytes2 = await canvasToBytes(canvas, png);
+          out.push({
+            name: `page-${pageIndex + 1}-image-${out.length + 1}.${png ? 'png' : 'jpg'}`,
+            bytes: bytes2,
+            width: obj.width,
+            height: obj.height,
+          });
+          options.onFound?.(out.length);
+        } catch {
+          // 1枚の異常でバッチ全体を落とさない
+          continue;
+        }
         if (out.length >= MAX_IMAGES) return out;
       }
     }
