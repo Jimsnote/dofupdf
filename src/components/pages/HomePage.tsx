@@ -5,7 +5,8 @@ import type { Dictionary } from '@/i18n/locales/ja';
 import { guides } from '@/lib/guides';
 import { localizedPath, localizedUrl } from '@/lib/seo';
 import { GITHUB_URL, SITE_NAME } from '@/lib/site';
-import { liveTools, tools, toolNames } from '@/lib/tools';
+import { liveTools, toolNames } from '@/lib/tools';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { JsonLd } from '@/components/seo/JsonLd';
 
 interface HomePageProps {
@@ -44,6 +45,7 @@ export function HomePage({ locale, dict }: HomePageProps) {
     <>
       <JsonLd data={webApplicationLd} />
       <JsonLd data={organizationLd} />
+      <BreadcrumbJsonLd items={[{ name: 'ホーム', path: '/' }]} />
 
       {/* Hero */}
       <section className="bg-gradient-to-b from-brand-50 to-white">
@@ -61,6 +63,35 @@ export function HomePage({ locale, dict }: HomePageProps) {
             {dict.home.hero.cta}
             <ArrowDown className="h-4 w-4" aria-hidden />
           </a>
+        </div>
+      </section>
+
+      {/* PDFパスワードツール */}
+      <section
+        aria-labelledby="password-tools-heading"
+        className="mx-auto max-w-6xl px-4 pb-4 sm:px-6"
+      >
+        <h2 id="password-tools-heading" className="text-2xl font-bold tracking-tight text-slate-900">
+          {dict.home.passwordTools.heading}
+        </h2>
+        <p className="mt-2 text-slate-600">{dict.home.passwordTools.subheading}</p>
+        <div className="mt-8 grid gap-5 sm:grid-cols-3">
+          {dict.home.passwordTools.cards.map((card, index) => (
+            <Link
+              key={card.href}
+              href={card.href}
+              className={`rounded-xl border bg-white p-6 shadow-sm transition-shadow hover:shadow-md ${
+                index === 0 ? 'border-brand-300 ring-1 ring-brand-200' : 'border-slate-200'
+              }`}
+            >
+              <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{card.description}</p>
+              <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
+                詳しく見る
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </span>
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -95,10 +126,10 @@ export function HomePage({ locale, dict }: HomePageProps) {
           {dict.home.toolsSection.subheading.replace('{count}', String(liveTools.length))}
         </p>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {tools.map((tool) => {
+          {liveTools.map((tool) => {
             const Icon = tool.icon;
             const copy = dict.tools[tool.i18nKey];
-            const live = tool.status === 'live';
+            const live = true;
             const cardBody = (
               <>
                 <div className="flex items-start justify-between gap-3">

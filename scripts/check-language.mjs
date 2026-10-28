@@ -28,7 +28,7 @@ const allow = new Set([
   'markdown', 'Markdown', 'macOS', 'iOS', 'iPhone', 'iPad', 'Wi', 'Adobe', 'Acrobat', 'Ghostscript', 'WebAssembly', 'Wiki', 'Pandoc', 'ChatGPT', 'Claude', 'README', 'Docs', 'GitLab', 'CSV',
   'Tesseract', 'qpdf', 'libheif', 'Word', 'Excel', 'LibreOffice', 'Notion', 'Obsidian', 'GitHub', 'AES', 'OCR', 'QR', 'Helvetica', 'Draw', 'EXIF',
   'NDA', 'A4', 'eIDAS', 'ESIGN', 'Pro', 'Extreme', 'Recommended', 'Light', 'Quartz', 'Print', 'print', 'from', 'to', 'TIFF', 'JPEG', 'GIF', 'HEIC', 'WebP',
-  'DIY', 'Microsoft', 'Preview', 'Sheet', 'name', 'https', 'com', 'www', 'png', 'jpg', 'Split', 'Merge', 'Compress', 'Windows', 'Bates', 'iLovePDF', 'API', 'LocalPDF', 'ToolPDFs', 'Sejda', 'PDF24', 'Creator', 'JSON', 'Smallpdf', 'TLS',
+  'DIY', 'Microsoft', 'Mac', 'Android', 'PPAP', 'Preview', 'Sheet', 'name', 'https', 'com', 'www', 'png', 'jpg', 'Split', 'Merge', 'Compress', 'Windows', 'Bates', 'iLovePDF', 'API', 'LocalPDF', 'ToolPDFs', 'Sejda', 'PDF24', 'Creator', 'JSON', 'Smallpdf', 'TLS',
   'Protect', 'Unlock', 'Rotate', 'Organize', 'Watermark', 'Sign', 'Extract', 'Remove', 'Convert', 'Cloud', 'Office', 'Web', 'Http', 'Https',
   'preview', 'split', 'merge', 'compress', 'unlock', 'protect', 'rotate', 'organized', 'extracted', 'removed', 'reordered',
   'merged', 'converted', 'compressed', 'watermarked', 'signed', 'protected', 'unlocked', 'example', 'CONFIDENTIAL',

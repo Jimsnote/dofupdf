@@ -1,13 +1,30 @@
 import type { Dictionary } from '@/i18n/locales/ja';
-import { GITHUB_URL } from '@/lib/site';
+import { GITHUB_URL, SITE_NAME, SITE_URL } from '@/lib/site';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
+import { JsonLd } from '@/components/seo/JsonLd';
 
 interface AboutPageProps {
   dict: Dictionary;
 }
 
 export function AboutPage({ dict }: AboutPageProps) {
+  const organizationLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: `${SITE_URL}/`,
+    logo: `${SITE_URL}/logo.svg`,
+    sameAs: [GITHUB_URL],
+  };
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+      <JsonLd data={organizationLd} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'ホーム', path: '/' },
+          { name: dict.about.heading, path: '/about/' },
+        ]}
+      />
       <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">
         {dict.about.heading}
       </h1>

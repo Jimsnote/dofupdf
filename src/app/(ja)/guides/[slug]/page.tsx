@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const guide = getGuide(slug);
   if (!guide) notFound();
 
-  const title = `${guide.title} | ${SITE_NAME}`;
+  const title = guide.metaTitle ?? `${guide.title} | ${SITE_NAME}`;
   // The site is Japanese-only: self-referencing canonical, no hreflang cluster.
   const canonical = `${SITE_URL}/guides/${guide.slug}/`;
   return {

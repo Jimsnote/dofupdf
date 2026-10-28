@@ -18,6 +18,7 @@ export function Header({ locale, dict }: HeaderProps) {
   const homeHref = localizedPath(locale, '');
   const navItems = [
     { label: dict.nav.home, href: homeHref },
+    { label: dict.nav.password, href: '/pdf-password/' },
     { label: dict.nav.tools, href: localizedPath(locale, '/tools') },
     { label: dict.nav.guides, href: '/guides/' },
     { label: dict.nav.about, href: localizedPath(locale, '/about') },

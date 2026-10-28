@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { FileText, Loader2, Trash2 } from 'lucide-react';
 import type { Dictionary } from '@/i18n/locales/ja';
 import {
@@ -118,7 +119,18 @@ export function ProtectPdfTool({ dict }: ProtectPdfToolProps) {
   return (
     <ToolShell
       title={copy.heading}
-      intro={copy.intro}
+      intro={
+        <>
+          {copy.intro}
+          <span className="mt-2 block">
+            かけ方の手順は「
+            <Link href="/guides/how-to-password-protect-pdf/" className="font-medium text-brand-700 underline-offset-2 hover:underline">
+              PDFにパスワードをかける方法
+            </Link>
+            」をご覧ください。
+          </span>
+        </>
+      }
       chips={ui.trustChips}
       privacyNote={ui.privacyNote}
       upload={

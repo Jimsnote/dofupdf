@@ -2,28 +2,36 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { getDictionary } from '@/i18n/get-dictionary';
 import { guides } from '@/lib/guides';
-import { tools } from '@/lib/tools';
+import { liveTools } from '@/lib/tools';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 
 /**
  * Guides index (/guides/): one card per guide with its title, a one-line
- * summary, and a link to the associated tool. The site is Japanese-only.
+ * summary, and a link to the associated tool. After the W1 consolidation the
+ * registry holds only the password guides; more slots are planned.
  */
 export function GuidesIndexPage() {
   const dict = getDictionary('ja');
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'ホーム', path: '/' },
+          { name: 'ガイド', path: '/guides/' },
+        ]}
+      />
       <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
         PDFガイド・チュートリアル
       </h1>
       <p className="mt-4 max-w-2xl text-lg leading-relaxed text-slate-600">
-        すべてのDofuPDFツール向けのステップバイステップチュートリアル — 無料で、ブラウザで即動作、プライバシー保護を前提に設計されました。
+        PDFパスワードの設定とロック解除のステップバイステップガイド — 無料で、ブラウザで即動作、プライバシー保護を前提に設計されました。
       </p>
 
       <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {guides.map((guide) => {
           const tool = guide.toolSlug
-            ? tools.find((t) => t.slug === guide.toolSlug)
+            ? liveTools.find((t) => t.slug === guide.toolSlug)
             : undefined;
           return (
             <div
@@ -48,6 +56,15 @@ export function GuidesIndexPage() {
             </div>
           );
         })}
+        <div
+          aria-hidden
+          className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5"
+        >
+          <h2 className="text-base font-semibold text-slate-400">新しいガイドを準備中</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+            PDFパスワードに関する解説を順次追加していきます。
+          </p>
+        </div>
       </div>
     </div>
   );

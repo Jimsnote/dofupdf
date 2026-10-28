@@ -32,3 +32,6 @@ tmp-*
 
 # Internal planning notes (Chinese), kept local only - not published
 docs/
+
+# Wrangler local dev state
+.wrangler/

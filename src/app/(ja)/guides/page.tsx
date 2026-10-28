@@ -10,7 +10,7 @@ const locale = 'ja' as const;
 
 const title = `PDFガイド・チュートリアル | ${SITE_NAME}`;
 const description =
-  'PDFの結合、分割、圧縮、保護などのステップバイステップチュートリアル — ブラウザで無料で、アップロードなし、登録なし。';
+  'PDFパスワードの設定・ロック解除のステップバイステップガイド — ブラウザで無料で、アップロードなし、登録なし。';
 // The site is Japanese-only: the canonical is self-referencing and there is no
 // hreflang cluster.
 const canonical = `${SITE_URL}/guides/`;

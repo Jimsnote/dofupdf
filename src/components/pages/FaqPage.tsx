@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react';
 import type { Dictionary } from '@/i18n/locales/ja';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { FactSummary } from '@/components/seo/FactSummary';
 import { JsonLd } from '@/components/seo/JsonLd';
 
@@ -24,6 +25,12 @@ export function FaqPage({ dict }: FaqPageProps) {
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
       <JsonLd data={faqLd} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'ホーム', path: '/' },
+          { name: dict.faq.heading, path: '/faq/' },
+        ]}
+      />
 
       <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">{dict.faq.heading}</h1>
 

@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import type { Dictionary } from '@/i18n/locales/ja';
 
-export type ToolStatus = 'live' | 'coming-soon';
+export type ToolStatus = 'live' | 'coming-soon' | 'offline';
 
 /**
  * Coarse purpose groups used by the /tools/ directory. Six buckets keep the
@@ -67,6 +67,10 @@ export const toolCategories: ToolCategory[] = [
  * flipping a status to 'live' makes the card clickable once the tool route
  * exists.
  *
+ * W1 consolidation (2026-10): only protect-pdf / unlock-pdf stay 'live'.
+ * The 24 'offline' tools keep their source under src/offline-pages/ and
+ * their URLs answer 410 via src/worker/index.js.
+ *
  * The order is the home page matrix (3 columns on desktop), so the first six
  * entries are what a visitor sees before scrolling — the receipt sheet sits at
  * the head of the second row because bookkeeping is the sharpest use case of
@@ -74,32 +78,32 @@ export const toolCategories: ToolCategory[] = [
  * matrix order is independent of it.
  */
 export const tools: Tool[] = [
-  { slug: 'merge-pdf', icon: Merge, i18nKey: 'merge-pdf', status: 'live', category: 'organize' },
-  { slug: 'split-pdf', icon: Scissors, i18nKey: 'split-pdf', status: 'live', category: 'organize' },
-  { slug: 'compress-pdf', icon: Minimize2, i18nKey: 'compress-pdf', status: 'live', category: 'business' },
-  { slug: 'receipt-sheet', icon: Printer, i18nKey: 'receipt-sheet', status: 'live', category: 'business' },
-  { slug: 'rotate-pdf', icon: RotateCw, i18nKey: 'rotate-pdf', status: 'live', category: 'organize' },
-  { slug: 'organize-pdf', icon: LayoutGrid, i18nKey: 'organize-pdf', status: 'live', category: 'organize' },
-  { slug: 'remove-pages', icon: FileMinus, i18nKey: 'remove-pages', status: 'live', category: 'organize' },
-  { slug: 'extract-pages', icon: FileOutput, i18nKey: 'extract-pages', status: 'live', category: 'organize' },
-  { slug: 'reorder-pages', icon: ArrowUpDown, i18nKey: 'reorder-pages', status: 'live', category: 'organize' },
-  { slug: 'docx-to-markdown', icon: FileType, i18nKey: 'docx-to-markdown', status: 'live', category: 'convert' },
-  { slug: 'xlsx-to-markdown', icon: FileSpreadsheet, i18nKey: 'xlsx-to-markdown', status: 'live', category: 'convert' },
-  { slug: 'extract-images', icon: Images, i18nKey: 'extract-images', status: 'live', category: 'convert' },
-  { slug: 'pdf-to-jpg', icon: Image, i18nKey: 'pdf-to-jpg', status: 'live', category: 'convert' },
-  { slug: 'jpg-to-pdf', icon: FileImage, i18nKey: 'jpg-to-pdf', status: 'live', category: 'convert' },
-  { slug: 'heic-to-pdf', icon: ImagePlus, i18nKey: 'heic-to-pdf', status: 'live', category: 'convert' },
-  { slug: 'sign-pdf', icon: Signature, i18nKey: 'sign-pdf', status: 'live', category: 'stamp' },
-  { slug: 'hanko-pdf', icon: Fingerprint, i18nKey: 'hanko-pdf', status: 'live', category: 'stamp' },
-  { slug: 'invoice-rename', icon: Receipt, i18nKey: 'invoice-rename', status: 'live', category: 'business' },
-  { slug: 'pdf-check', icon: ShieldCheck, i18nKey: 'pdf-check', status: 'live', category: 'business' },
+  { slug: 'merge-pdf', icon: Merge, i18nKey: 'merge-pdf', status: 'offline', category: 'organize' },
+  { slug: 'split-pdf', icon: Scissors, i18nKey: 'split-pdf', status: 'offline', category: 'organize' },
+  { slug: 'compress-pdf', icon: Minimize2, i18nKey: 'compress-pdf', status: 'offline', category: 'business' },
+  { slug: 'receipt-sheet', icon: Printer, i18nKey: 'receipt-sheet', status: 'offline', category: 'business' },
+  { slug: 'rotate-pdf', icon: RotateCw, i18nKey: 'rotate-pdf', status: 'offline', category: 'organize' },
+  { slug: 'organize-pdf', icon: LayoutGrid, i18nKey: 'organize-pdf', status: 'offline', category: 'organize' },
+  { slug: 'remove-pages', icon: FileMinus, i18nKey: 'remove-pages', status: 'offline', category: 'organize' },
+  { slug: 'extract-pages', icon: FileOutput, i18nKey: 'extract-pages', status: 'offline', category: 'organize' },
+  { slug: 'reorder-pages', icon: ArrowUpDown, i18nKey: 'reorder-pages', status: 'offline', category: 'organize' },
+  { slug: 'docx-to-markdown', icon: FileType, i18nKey: 'docx-to-markdown', status: 'offline', category: 'convert' },
+  { slug: 'xlsx-to-markdown', icon: FileSpreadsheet, i18nKey: 'xlsx-to-markdown', status: 'offline', category: 'convert' },
+  { slug: 'extract-images', icon: Images, i18nKey: 'extract-images', status: 'offline', category: 'convert' },
+  { slug: 'pdf-to-jpg', icon: Image, i18nKey: 'pdf-to-jpg', status: 'offline', category: 'convert' },
+  { slug: 'jpg-to-pdf', icon: FileImage, i18nKey: 'jpg-to-pdf', status: 'offline', category: 'convert' },
+  { slug: 'heic-to-pdf', icon: ImagePlus, i18nKey: 'heic-to-pdf', status: 'offline', category: 'convert' },
+  { slug: 'sign-pdf', icon: Signature, i18nKey: 'sign-pdf', status: 'offline', category: 'stamp' },
+  { slug: 'hanko-pdf', icon: Fingerprint, i18nKey: 'hanko-pdf', status: 'offline', category: 'stamp' },
+  { slug: 'invoice-rename', icon: Receipt, i18nKey: 'invoice-rename', status: 'offline', category: 'business' },
+  { slug: 'pdf-check', icon: ShieldCheck, i18nKey: 'pdf-check', status: 'offline', category: 'business' },
   { slug: 'protect-pdf', icon: Lock, i18nKey: 'protect-pdf', status: 'live', category: 'security' },
   { slug: 'unlock-pdf', icon: LockOpen, i18nKey: 'unlock-pdf', status: 'live', category: 'security' },
-  { slug: 'watermark-pdf', icon: Stamp, i18nKey: 'watermark-pdf', status: 'live', category: 'stamp' },
-  { slug: 'page-numbers', icon: Hash, i18nKey: 'page-numbers', status: 'live', category: 'organize' },
-  { slug: 'pdf-to-markdown', icon: FileText, i18nKey: 'pdf-to-markdown', status: 'live', category: 'convert' },
-  { slug: 'qr-code', icon: QrCode, i18nKey: 'qr-code', status: 'live', category: 'other' },
-  { slug: 'ocr-pdf', icon: ScanText, i18nKey: 'ocr-pdf', status: 'live', category: 'convert' },
+  { slug: 'watermark-pdf', icon: Stamp, i18nKey: 'watermark-pdf', status: 'offline', category: 'stamp' },
+  { slug: 'page-numbers', icon: Hash, i18nKey: 'page-numbers', status: 'offline', category: 'organize' },
+  { slug: 'pdf-to-markdown', icon: FileText, i18nKey: 'pdf-to-markdown', status: 'offline', category: 'convert' },
+  { slug: 'qr-code', icon: QrCode, i18nKey: 'qr-code', status: 'offline', category: 'other' },
+  { slug: 'ocr-pdf', icon: ScanText, i18nKey: 'ocr-pdf', status: 'offline', category: 'convert' },
 ];
 
 /** Live tools, derived from the central registry. */

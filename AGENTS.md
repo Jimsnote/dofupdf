@@ -9,7 +9,9 @@
 
 ## 1. 项目一句话
 
-DofuPDF（品牌沿革：CoolPDF → CPdf → NoriPDF → DofuPDF；2026-09 起转向**日本市场**，与 coolpdf / noripdf 及其旧域名**再无任何关联**）是**面向日本用户的纯浏览器端 PDF 工具站**（类 ilovepdf.com），**零后端**：全部 26 个工具的处理都在浏览器（JS/WASM/Web Worker）完成。核心卖点三支柱（日语固定术语见 `ja.ts`，此处不转写避免错字）：**无上传（文件永不离开设备）/ 免注册 / 永久免费**。变现目标 Google AdSense（未接入，接入清单见 `docs/TODO.md`）。
+DofuPDF（品牌沿革：CoolPDF → CPdf → NoriPDF → DofuPDF；2026-09 起转向**日本市场**，与 coolpdf / noripdf 及其旧域名**再无任何关联**）是**面向日本用户的纯浏览器端 PDF 工具站**（类 ilovepdf.com），**零后端**：全部工具的处理都在浏览器（JS/WASM/Web Worker）完成。核心卖点三支柱（日语固定术语见 `ja.ts`，此处不转写避免错字）：**无上传（文件永不离开设备）/ 免注册 / 永久免费**。变现目标 Google AdSense（未接入，接入清单见 `docs/TODO.md`）。
+
+> **W1（2026-10-28）展示面收缩**：线上只保留 protect-pdf / unlock-pdf 两个工具页 + 新建 /pdf-password/ 枢纽页 + 2 篇密码指南；其余 24 个工具页与 19 篇指南全部 410 下线（**代码不删除**：路由移到 `src/offline-pages/`，指南数据文件保留在 `src/lib/guides/` 但不注册；410 由 `src/worker/index.js`（wrangler `main`）应答，下线清单是该文件的单一事实源）。tools.ts 的 `status: 'offline'` 控制 sitemap/首页/目录页不露出。恢复某工具 = 移回路由 + status 回 live + 从 worker 清单删除 + guides 重新注册。
 
 - **线上**：https://dofupdf.com（Cloudflare Workers Static Assets；www 已 301 到主域；push main 经 GitHub 集成自动部署）
 - **仓库**：`https://github.com/Jimsnote/dofupdf`（**已建、已接入自动部署**，origin=main；代码保留 env 覆盖；AGPL-3.0——因压缩用 Ghostscript WASM）
@@ -46,7 +48,9 @@ DofuPDF（品牌沿革：CoolPDF → CPdf → NoriPDF → DofuPDF；2026-09 起�
 
 ```
 src/
-├── app/(ja)/            # 全部页面（根路径，日语）：layout/not-found + 5 内容页 + 26 工具页 + /tools 分类目录页 + guides/compare
+├── app/(ja)/            # 线上页面（根路径，日语）：layout/not-found + 5 内容页 + 2 工具页 + /pdf-password 枢纽 + /tools + guides/compare
+├── offline-pages/        # W1 下线的 24 个工具路由（不编译、不生成，保留待恢复）
+├── worker/index.js       # 站点 Worker：43 个撤下 URL 应答 410（wrangler main）
 ├── app/sitemap.ts       # 由 tools.ts 的 live 工具派生，勿硬编码；无 lastmod（刻意）
 ├── app/robots.ts        # 放行 AI 爬虫（GPTBot/ClaudeBot/PerplexityBot 等）
 ├── components/
@@ -59,7 +63,7 @@ src/
 ├── i18n/locales/ja.ts   # 唯一字典，**Dictionary 类型源头**（`export type Dictionary = typeof ja`，结构即契约）
 ├── lib/site.ts          # SITE_NAME='DofuPDF' / SITE_URL（默认 https://dofupdf.com）/ GITHUB_URL / CONTACT_EMAIL（support@dofupdf.com，CF Email Routing 转发）
 ├── lib/seo.ts           # buildAlternates / pageMetadata / localizedPath / OG_IMAGE_URL
-├── lib/tools.ts         # 26 工具注册表（slug/图标/status/category 六组；/tools 目录页由 toolGroups() 驱动，toolCategories 定显示顺序；HWP/HWPX 两个工具已整体下线，渲染器与内嵌字体文件已删除）
+├── lib/tools.ts         # 工具注册表（slug/图标/status/category；W1 起仅 protect/unlock 为 live，其余 offline；HWP/HWPX 已整体删除）
 ├── lib/guides/          # 教程内容系统（日语）：types.ts + index.ts 注册表 + 21 个 <slug>.ts 数据文件
 ├── lib/compare/         # 竞品对比页（日语）：dofupdf-vs-ilovepdf / -smallpdf / -sejda
 └── lib/pdf/             # 纯函数处理层（与 React 解耦，Node 可测）

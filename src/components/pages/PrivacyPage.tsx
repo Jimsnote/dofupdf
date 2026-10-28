@@ -1,4 +1,5 @@
 import type { Dictionary } from '@/i18n/locales/ja';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 
 interface PrivacyPageProps {
   dict: Dictionary;
@@ -7,6 +8,12 @@ interface PrivacyPageProps {
 export function PrivacyPage({ dict }: PrivacyPageProps) {
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'ホーム', path: '/' },
+          { name: dict.privacy.heading, path: '/privacy/' },
+        ]}
+      />
       <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">
         {dict.privacy.heading}
       </h1>

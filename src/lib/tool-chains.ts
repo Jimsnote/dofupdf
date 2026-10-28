@@ -15,7 +15,7 @@ export const TOOL_CHAINS: Partial<Record<ToolKey, ToolKey[]>> = {
   'compress-pdf': ['protect-pdf', 'merge-pdf', 'watermark-pdf', 'page-numbers'],
   'rotate-pdf': ['compress-pdf', 'merge-pdf', 'page-numbers', 'protect-pdf'],
   'organize-pdf': ['compress-pdf', 'merge-pdf', 'protect-pdf', 'page-numbers'],
-  'unlock-pdf': ['compress-pdf', 'organize-pdf', 'split-pdf', 'merge-pdf'],
+  'unlock-pdf': ['protect-pdf'],
   'watermark-pdf': ['compress-pdf', 'protect-pdf', 'page-numbers', 'merge-pdf'],
   'page-numbers': ['compress-pdf', 'protect-pdf', 'watermark-pdf', 'merge-pdf'],
   'sign-pdf': ['compress-pdf', 'protect-pdf', 'merge-pdf', 'page-numbers'],

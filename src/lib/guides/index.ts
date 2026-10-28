@@ -1,54 +1,17 @@
 import type { Guide } from './types';
-import { pdfToolsThatDontUpload } from './5-pdf-tools-that-dont-upload-your-files';
-import { howToAddPageNumbersToPdf } from './how-to-add-page-numbers-to-pdf';
-import { howToPrintReceiptsOnOneA4 } from './how-to-print-receipts-on-one-a4';
-import { howToAddWatermarkToPdf } from './how-to-add-watermark-to-pdf';
-import { howToCompressPdf } from './how-to-compress-pdf';
-import { howToConvertJpgToPdf } from './how-to-convert-jpg-to-pdf';
-import { howToConvertPdfToJpg } from './how-to-convert-pdf-to-jpg';
-import { howToConvertPdfToMarkdown } from './how-to-convert-pdf-to-markdown';
-import { howToConvertDocxToMarkdown } from './how-to-convert-docx-to-markdown';
-import { howToConvertXlsxToMarkdown } from './how-to-convert-xlsx-to-markdown';
-import { howToExtractPagesFromPdf } from './how-to-extract-pages-from-pdf';
-import { howToMergePdf } from './how-to-merge-pdf';
-import { howToOrganizePdfPages } from './how-to-organize-pdf-pages';
 import { howToPasswordProtectPdf } from './how-to-password-protect-pdf';
-import { howToRemovePagesFromPdf } from './how-to-remove-pages-from-pdf';
-import { howToRotatePdf } from './how-to-rotate-pdf';
-import { howToSplitPdf } from './how-to-split-pdf';
 import { howToUnlockPdf } from './how-to-unlock-pdf';
-import { howToAddHankoSealToPdf } from './how-to-add-hanko-seal-to-pdf';
-import { howToRenameInvoicePdfs } from './how-to-rename-invoice-pdfs';
-import { howToCheckPdfBeforeSubmitting } from './how-to-check-pdf-before-submitting';
 
 /**
  * Central guide registry, in display order. Guides are Japanese long-form
  * tutorials rendered at /guides/<slug>/; the sitemap and both guide routes
  * derive from this list, so adding a guide here is enough to publish it.
+ *
+ * W1 consolidation: only the two password guides stay published. The other
+ * guide data files remain in this folder (code is kept, unpublished) and
+ * return 410 via src/worker/index.js.
  */
-export const guides: Guide[] = [
-  howToMergePdf,
-  howToSplitPdf,
-  howToCompressPdf,
-  howToRotatePdf,
-  howToOrganizePdfPages,
-  howToRemovePagesFromPdf,
-  howToExtractPagesFromPdf,
-  howToConvertPdfToJpg,
-  howToConvertJpgToPdf,
-  howToPasswordProtectPdf,
-  howToUnlockPdf,
-  howToAddWatermarkToPdf,
-  howToAddPageNumbersToPdf,
-  howToPrintReceiptsOnOneA4,
-  howToAddHankoSealToPdf,
-  howToRenameInvoicePdfs,
-  howToCheckPdfBeforeSubmitting,
-  howToConvertPdfToMarkdown,
-  howToConvertDocxToMarkdown,
-  howToConvertXlsxToMarkdown,
-  pdfToolsThatDontUpload,
-];
+export const guides: Guide[] = [howToPasswordProtectPdf, howToUnlockPdf];
 
 /** Looks up a guide by its URL slug. */
 export function getGuide(slug: string): Guide | undefined {

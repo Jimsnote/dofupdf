@@ -3,6 +3,7 @@ import { ArrowRight, Check, ChevronDown, ExternalLink, Scale } from 'lucide-reac
 import type { Compare } from '@/lib/compare/types';
 import { SITE_NAME, SITE_URL } from '@/lib/site';
 import { JsonLd } from '@/components/seo/JsonLd';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 
 interface ComparePageProps {
   compare: Compare;
@@ -40,6 +41,13 @@ export function ComparePage({ compare }: ComparePageProps) {
     <article className="mx-auto max-w-3xl">
       <JsonLd data={articleLd} />
       <JsonLd data={faqLd} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'ホーム', path: '/' },
+          { name: '比較', path: '/compare/' },
+          { name: compare.competitor, path: `/compare/${compare.slug}/` },
+        ]}
+      />
 
       <nav aria-label="パンくずリスト" className="text-sm text-slate-500">
         <Link href="/" className="hover:text-brand-700">ホーム</Link>

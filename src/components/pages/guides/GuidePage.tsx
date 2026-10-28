@@ -6,6 +6,7 @@ import { getGuide } from '@/lib/guides';
 import type { Guide } from '@/lib/guides/types';
 import { SITE_NAME, SITE_URL } from '@/lib/site';
 import { tools } from '@/lib/tools';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { JsonLd } from '@/components/seo/JsonLd';
 
 interface GuidePageProps {
@@ -55,16 +56,37 @@ export function GuidePage({ guide }: GuidePageProps) {
     publisher: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },
   };
 
-  const howToLd = {
-    '@context': 'https://schema.org',
-    '@type': 'HowTo',
-    name: guide.title,
-    step: guide.quickSteps.map((text, index) => ({
-      '@type': 'HowToStep',
-      position: index + 1,
-      text,
-    })),
-  };
+  const howToLd = guide.howTo
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'HowTo',
+        name: guide.howTo.name,
+        step: guide.howTo.steps.map((step, index) => ({
+          '@type': 'HowToStep',
+          position: index + 1,
+          name: step.name,
+          text: step.text,
+          ...(step.toolUrl
+            ? {
+                tool: {
+                  '@type': 'HowToTool',
+                  name: 'DofuPDF',
+                  url: `${SITE_URL}${step.toolUrl}`,
+                },
+              }
+            : {}),
+        })),
+      }
+    : {
+        '@context': 'https://schema.org',
+        '@type': 'HowTo',
+        name: guide.title,
+        step: guide.quickSteps.map((text, index) => ({
+          '@type': 'HowToStep',
+          position: index + 1,
+          text,
+        })),
+      };
 
   const faqLd = {
     '@context': 'https://schema.org',
@@ -86,6 +108,13 @@ export function GuidePage({ guide }: GuidePageProps) {
       <JsonLd data={articleLd} />
       <JsonLd data={howToLd} />
       <JsonLd data={faqLd} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'ホーム', path: '/' },
+          { name: 'ガイド', path: '/guides/' },
+          { name: guide.title, path: `/guides/${guide.slug}/` },
+        ]}
+      />
 
       <nav aria-label="パンくずリスト" className="text-sm text-slate-500">
         <ol className="flex flex-wrap items-center gap-1.5">

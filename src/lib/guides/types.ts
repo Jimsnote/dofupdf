@@ -33,6 +33,17 @@ export interface GuideFaq {
  * written as [label](/path/) — always site-relative, always with a trailing
  * slash. Keep every factual claim in sync with the real tool behavior.
  */
+export interface GuideHowTo {
+  /** HowTo name (usually the guide title). */
+  name: string;
+  steps: {
+    name: string;
+    text: string;
+    /** Tool URL referenced by this step (schema.org HowToStep `tool`). */
+    toolUrl?: string;
+  }[];
+}
+
 export interface Guide {
   /** URL slug, e.g. 'how-to-merge-pdf'. */
   slug: string;
@@ -40,12 +51,16 @@ export interface Guide {
   toolSlug: string | null;
   /** H1 of the page; the route appends ' | DofuPDF' for the meta title. */
   title: string;
+  /** Full meta title when it must differ from `${title} | DofuPDF`. */
+  metaTitle?: string;
   /** Meta description, <= 160 chars. */
   description: string;
   /** Direct-answer opening paragraph (60-80 words), doubles as a GEO summary. */
   intro: string;
   /** Four-step quick answer; mirrors the real tool UI, feeds HowTo JSON-LD. */
   quickSteps: string[];
+  /** Custom HowTo JSON-LD (with tool references); overrides the quickSteps LD. */
+  howTo?: GuideHowTo;
   /** Detailed walkthrough sections (3-4 per guide). */
   sections: GuideSection[];
   /** Other ways to do the same job (Preview, Acrobat, ...), 2-3 sentences each. */

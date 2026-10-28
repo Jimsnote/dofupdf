@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { compares } from '@/lib/compare';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 
 /**
  * /compare/ index: every comparison page in the registry, as cards.
@@ -8,6 +9,12 @@ import { compares } from '@/lib/compare';
 export function CompareIndexPage() {
   return (
     <div className="mx-auto max-w-4xl">
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'ホーム', path: '/' },
+          { name: 'DofuPDF比較', path: '/compare/' },
+        ]}
+      />
       <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
         DofuPDF比較
       </h1>

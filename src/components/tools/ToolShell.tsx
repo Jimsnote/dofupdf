@@ -3,7 +3,7 @@ import { Check, Lock } from 'lucide-react';
 
 interface ToolShellProps {
   title: string;
-  intro: string;
+  intro: ReactNode;
   /** Trust badges shown right under the intro (e.g. No uploads / Runs locally). */
   chips?: string[];
   /** Fixed privacy line shown directly under the upload area. */

@@ -7,7 +7,7 @@ import { tools } from '@/lib/tools';
 
 export const dynamic = 'force-static';
 
-const staticPaths = ['', '/about', '/privacy', '/terms', '/faq', '/tools'];
+const staticPaths = ['', '/about', '/privacy', '/terms', '/faq', '/tools', '/pdf-password'];
 
 /** Live tool pages, derived from the central registry. */
 const toolPaths = tools
@@ -31,8 +31,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     for (const locale of locales) {
       entries.push({
         url: localizedUrl(locale, path),
-        // No lastModified: a build-time `new Date()` would change every
-        // deploy, which search engines learn to distrust.
+        // W1 指示：lastmod はビルド生成日
+        lastModified: new Date(),
         changeFrequency: path === '' || isTool ? 'weekly' : 'monthly',
         priority: path === '' ? 1 : isTool ? 0.9 : 0.8,
         alternates: { languages },
@@ -46,6 +46,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   for (const path of guidePaths) {
     entries.push({
       url: localizedUrl(defaultLocale, path),
+      lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.7,
     });
@@ -56,6 +57,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   for (const path of comparePaths) {
     entries.push({
       url: localizedUrl(defaultLocale, path),
+      lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.7,
     });

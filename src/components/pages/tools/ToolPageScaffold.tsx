@@ -9,6 +9,7 @@ import { splitLeadSentence } from '@/lib/text';
 import { SITE_NAME } from '@/lib/site';
 import { FactSummary } from '@/components/seo/FactSummary';
 import { JsonLd } from '@/components/seo/JsonLd';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 
 export type ToolSlug =
   | 'merge-pdf'
@@ -58,18 +59,18 @@ export function ToolPageScaffold({ locale, dict, slug, children }: ToolPageScaff
   // Tool-specific FAQs plus the site-wide shared ones (e.g. usage limits).
   const faqItems = [...copy.faq, ...dict.sharedToolFaq];
 
-  const webApplicationLd = {
+  const softwareApplicationLd = {
     '@context': 'https://schema.org',
-    '@type': 'WebApplication',
-    name: dict.tools[slug].name,
-    url: localizedUrl(locale, `/${slug}`),
+    '@type': 'SoftwareApplication',
+    name: `${SITE_NAME} — ${copy.heading}`,
+    url: localizedUrl(locale, `/${slug}/`),
     description: copy.metaDescription,
     applicationCategory: 'UtilitiesApplication',
-    operatingSystem: 'Any',
+    operatingSystem: 'Any (Web browser)',
     offers: {
       '@type': 'Offer',
-      price: 0,
-      priceCurrency: 'USD',
+      price: '0',
+      priceCurrency: 'JPY',
     },
     creator: {
       '@type': 'Organization',
@@ -105,9 +106,15 @@ export function ToolPageScaffold({ locale, dict, slug, children }: ToolPageScaff
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-      <JsonLd data={webApplicationLd} />
+      <JsonLd data={softwareApplicationLd} />
       <JsonLd data={howToLd} />
       <JsonLd data={faqLd} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'ホーム', path: '/' },
+          { name: copy.heading, path: `/${slug}/` },
+        ]}
+      />
 
       {children}
 

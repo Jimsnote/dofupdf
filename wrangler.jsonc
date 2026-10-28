@@ -1,12 +1,16 @@
 {
   // DofuPDF is a fully static site (Next.js `output: 'export'` → ./out).
-  // This config tells Wrangler to deploy ./out as static assets ONLY, so the
-  // Workers Builds pipeline never attempts the OpenNext full-stack migration
-  // (which requires a Node server build and fails on static exports).
+  // The tiny site worker intercepts the 43 retired URLs (W1 consolidation)
+  // and answers HTTP 410 for them; everything else is served from ./out as
+  // static assets (assets win for existing files, the worker only sees
+  // misses). `npx wrangler deploy` deploys both, so the GitHub integration
+  // keeps working unchanged.
   "name": "dofupdf",
   "compatibility_date": "2026-07-18",
+  "main": "src/worker/index.js",
   "assets": {
     "directory": "./out",
+    "binding": "ASSETS",
     // Site is pre-rendered HTML (not an SPA): unknown paths get the 404 page.
     "not_found_handling": "404-page"
   }
