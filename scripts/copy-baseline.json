@@ -58,7 +58,7 @@
  "src/i18n/locales/ja.ts::ja.footer.terms": "利用規約",
  "src/i18n/locales/ja.ts::ja.guideCta": "詳しいガイドを読む",
  "src/i18n/locales/ja.ts::ja.home.hero.cta": "ツールを見る",
- "src/i18n/locales/ja.ts::ja.home.hero.subtitle": "ブラウザでそのままPDFを結合・分割・圧縮・保護できます。アップロードも、登録も、サーバーもありません。ファイルがお使いの端末の外に出ることは一切ありません。",
+ "src/i18n/locales/ja.ts::ja.home.hero.subtitle": "ブラウザでそのままPDFにパスワードを設定・解除できます。アップロードも、登録も、サーバーもありません。ファイルがお使いの端末の外に出ることは一切ありません。",
  "src/i18n/locales/ja.ts::ja.home.hero.title": "プライバシーを守る無料PDFツール",
  "src/i18n/locales/ja.ts::ja.home.metaDescription": "ブラウザでそのままPDFを結合・分割・圧縮・保護。100%ブラウザ内で処理します。アップロードなし、登録なし、永久無料。",
  "src/i18n/locales/ja.ts::ja.home.metaTitle": "プライバシーを守る無料PDFツール | DofuPDF",
