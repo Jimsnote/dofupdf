@@ -11,6 +11,8 @@
 
 DofuPDF（品牌沿革：CoolPDF → CPdf → NoriPDF → DofuPDF；2026-09 起转向**日本市场**，与 coolpdf / noripdf 及其旧域名**再无任何关联**）是**面向日本用户的纯浏览器端 PDF 工具站**（类 ilovepdf.com），**零后端**：全部工具的处理都在浏览器（JS/WASM/Web Worker）完成。核心卖点三支柱（日语固定术语见 `ja.ts`，此处不转写避免错字）：**无上传（文件永不离开设备）/ 免注册 / 永久免费**。变现目标 Google AdSense（未接入，接入清单见 `docs/TODO.md`）。
 
+> **W2–W3（2026-10-28）Pro 收费链路**：protect/unlock 两页加「まとめて処理」批量模式（≤3 免费、≥4 仅提示不阻断；Pro=50/回＋名前一括＋log.csv）；License 走 worker 代理（/api/license/activate|validate|deactivate，env 缺省时 DEMO 模式收 DEMO-PRO-0000-0000，响应头 X-License-Mode: demo）；新页 /pricing/（含 license 卡）与 /tokushoho/（4 处【要運営者入力】待运营填）；terms/privacy 追加付费条款。支付侧真实配置（Lemon Squeezy store/product/API key、checkout URL）由运营方完成，见 docs/TODO.md。
+
 > **W1（2026-10-28）展示面收缩**：线上只保留 protect-pdf / unlock-pdf 两个工具页 + 新建 /pdf-password/ 枢纽页 + 2 篇密码指南；其余 24 个工具页与 19 篇指南全部 410 下线（**代码不删除**：路由移到 `src/offline-pages/`，指南数据文件保留在 `src/lib/guides/` 但不注册；410 由 `src/worker/index.js`（wrangler `main`）应答，下线清单是该文件的单一事实源）。tools.ts 的 `status: 'offline'` 控制 sitemap/首页/目录页不露出。恢复某工具 = 移回路由 + status 回 live + 从 worker 清单删除 + guides 重新注册。
 
 - **线上**：https://dofupdf.com（Cloudflare Workers Static Assets；www 已 301 到主域；push main 经 GitHub 集成自动部署）

@@ -82,6 +82,122 @@ const BODY = `<!doctype html>
 </html>
 `;
 
+/**
+ * License endpoints (W2/W3): the browser never holds the Lemon Squeezy API
+ * key — it only talks to these routes, and the worker calls the License API.
+ * Without env config the worker runs in DEMO mode: the key DEMO-PRO-0000-0000
+ * behaves like a real Pro key (for local E2E), and responses carry
+ * `X-License-Mode: demo` so the UI can show a DEMO badge.
+ *
+ * Privacy: only the license key travels. PDFs and passwords never do.
+ */
+const DEMO_KEY = 'DEMO-PRO-0000-0000';
+const LS_API = 'https://api.lemonsqueezy.com/v1/licenses';
+
+/** Naive per-IP rate limit: 10 requests/minute (in-memory, per isolate). */
+const rateBuckets = new Map();
+function rateLimited(ip) {
+  const now = Date.now();
+  const bucket = rateBuckets.get(ip) ?? { start: now, count: 0 };
+  if (now - bucket.start > 60_000) {
+    bucket.start = now;
+    bucket.count = 0;
+  }
+  bucket.count += 1;
+  rateBuckets.set(ip, bucket);
+  if (rateBuckets.size > 10_000) rateBuckets.clear();
+  return bucket.count > 10;
+}
+
+function json(data, { status = 200, demo = false } = {}) {
+  const headers = { 'content-type': 'application/json; charset=utf-8' };
+  if (demo) headers['x-license-mode'] = 'demo';
+  return new Response(JSON.stringify(data), { status, headers });
+}
+
+function licenseEnvReady(env) {
+  return Boolean(env.LEMONSQUEEZY_API_KEY && env.LEMONSQUEEZY_STORE_ID && env.LEMONSQUEEZY_PRODUCT_ID);
+}
+
+async function lsCall(env, path, body) {
+  const res = await fetch(`${LS_API}${path}`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${env.LEMONSQUEEZY_API_KEY}`,
+      accept: 'application/vnd.api+json',
+      'content-type': 'application/vnd.api+json',
+    },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+async function handleLicense(request, env, action) {
+  const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+  if (rateLimited(ip)) {
+    return json({ error: 'rate_limited' }, { status: 429 });
+  }
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return json({ error: 'bad_request' }, { status: 400 });
+  }
+  const key = typeof payload.key === 'string' ? payload.key.trim() : '';
+  if (!key) return json({ error: 'missing_key' }, { status: 400 });
+
+  const demo = !licenseEnvReady(env);
+  if (demo) {
+    // DEMO 模式：固定キーのみ受理、挙動は本番と同一
+    if (key !== DEMO_KEY) {
+      return json({ valid: false, error: 'invalid_key' }, { status: 200, demo: true });
+    }
+    if (action === 'activate') {
+      return json({ valid: true, instance_id: 'demo-instance-1' }, { demo: true });
+    }
+    if (action === 'validate') {
+      return json({ valid: true, instance_id: payload.instance_id ?? 'demo-instance-1' }, { demo: true });
+    }
+    return json({ deactivated: true }, { demo: true });
+  }
+
+  try {
+    if (action === 'activate') {
+      const data = await lsCall(env, '/activate', {
+        license_key: key,
+        instance_name: payload.instance_name ?? 'browser',
+      });
+      if (data.activated) {
+        return json({
+          valid: true,
+          instance_id: data.instance?.id ?? null,
+          expires: data.license_key?.expires_at ?? null,
+        });
+      }
+      return json({ valid: false, error: data.error ?? 'invalid_key' });
+    }
+    if (action === 'validate') {
+      const data = await lsCall(env, '/validate', {
+        license_key: key,
+        instance_id: payload.instance_id ?? null,
+      });
+      return json({
+        valid: Boolean(data.valid),
+        instance_id: data.instance?.id ?? payload.instance_id ?? null,
+        expires: data.license_key?.expires_at ?? null,
+      });
+    }
+    // deactivate
+    const data = await lsCall(env, '/deactivate', {
+      license_key: key,
+      instance_id: payload.instance_id ?? null,
+    });
+    return json({ deactivated: Boolean(data.deactivated) });
+  } catch {
+    return json({ error: 'upstream_unavailable' }, { status: 502 });
+  }
+}
+
 const siteWorker = {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -95,6 +211,13 @@ const siteWorker = {
           'cache-control': 'public, max-age=86400',
         },
       });
+    }
+    const licenseMatch = /^\/api\/license\/(activate|validate|deactivate)$/.exec(path);
+    if (licenseMatch) {
+      if (request.method !== 'POST') {
+        return json({ error: 'method_not_allowed' }, { status: 405 });
+      }
+      return handleLicense(request, env, licenseMatch[1]);
     }
     return env.ASSETS.fetch(request);
   },

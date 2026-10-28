@@ -17,6 +17,8 @@ export function Footer({ locale, dict }: FooterProps) {
     { label: dict.footer.privacy, href: localizedPath(locale, '/privacy') },
     { label: dict.footer.terms, href: localizedPath(locale, '/terms') },
     { label: dict.footer.faq, href: localizedPath(locale, '/faq') },
+    { label: dict.footer.tokushoho, href: localizedPath(locale, '/tokushoho') },
+    { label: dict.footer.license, href: localizedPath(locale, '/pricing') },
   ];
 
   return (
