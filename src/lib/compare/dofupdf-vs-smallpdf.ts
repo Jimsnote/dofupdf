@@ -21,7 +21,7 @@ export const dofuPdfVsSmallpdf: Compare = {
     },
     {
       feature: '料金',
-      dofuPdf: '無料、目立たない広告で運営',
+      dofuPdf: '単一ファイルは無料。まとめて処理は買い切り Pro',
       them: '無料プラン + Proは月約12ドルから',
     },
     {
@@ -66,7 +66,7 @@ export const dofuPdfVsSmallpdf: Compare = {
     },
     {
       q: 'Smallpdfを有料で使う価値があるのはどんな場合ですか？',
-      a: '電子署名、AI要約、ネイティブアプリでのオフラインワークフローを定期的に必要とするなら、Smallpdf Proは妥当な価格です。作業のほとんどがPDFの結合、分割、圧縮、変換、保護なら、DofuPDFが無料で、制限なくカバーします。',
+      a: '電子署名、AI要約、ネイティブアプリでのオフラインワークフローを定期的に必要とするなら、Smallpdf Proは妥当な価格です。PDFへのパスワード設定やロック解除なら、DofuPDFが無料で、ブラウザ内でカバーします。',
     },
   ],
 };
