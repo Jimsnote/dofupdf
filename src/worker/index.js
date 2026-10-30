@@ -141,9 +141,13 @@ async function activationKey(licenseKey, deviceId) {
 
 /**
  * Payhip license verify. Returns {enabled} for a well-formed answer and
- * {enabled:false} for a 404 (key does not exist); any other upstream failure
- * (network error, timeout, 5xx, unparsable body) returns null so the caller
- * decides how to degrade. 10s timeout: a hanging Payhip must not hang the API.
+ * {enabled:false} when the key does not exist: Payhip answers HTTP 400 with
+ * body {"data":[],"error":true} for unknown license keys (verified live
+ * 2026-10-30), and 404 is kept as a defensive alias. Any other failure —
+ * 401 (product secret invalid: an operator alert, deliberately NOT mapped
+ * to "invalid key"), 5xx, network error, timeout, unparsable body — returns
+ * null so the caller decides how to degrade. 10s timeout: a hanging Payhip
+ * must not hang the API.
  */
 const PAYHIP_TIMEOUT_MS = 10_000;
 
@@ -157,7 +161,7 @@ async function payhipVerify(env, licenseKey) {
   } catch {
     return null;
   }
-  if (res.status === 404) return { enabled: false };
+  if (res.status === 400 || res.status === 404) return { enabled: false };
   if (!res.ok) return null;
   const data = await res.json().catch(() => null);
   return { enabled: Boolean(data?.data?.enabled) };
