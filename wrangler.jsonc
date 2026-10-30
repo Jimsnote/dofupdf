@@ -8,6 +8,14 @@
   "name": "dofupdf",
   "compatibility_date": "2026-07-18",
   "main": "src/worker/index.js",
+  "kv_namespaces": [
+    {
+      // Pro ライセンスのデバイス枠（1キー3台まで）の権威記録。W2.5 Payhip 移行で追加。
+      // 生成コマンド: npx wrangler kv namespace create LICENSE_KV
+      "binding": "LICENSE_KV",
+      "id": "c6d2d9d9255548b3908684dbf7972ff5"
+    }
+  ],
   "assets": {
     "directory": "./out",
     "binding": "ASSETS",

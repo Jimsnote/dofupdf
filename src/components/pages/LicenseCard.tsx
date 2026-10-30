@@ -26,7 +26,8 @@ export function LicenseCard({ dict }: LicenseCardProps) {
     setError(null);
     const result = await activateLicense(key);
     if (!result.ok) {
-      setError(result.error === 'network' ? copy.licenseNetworkError : copy.licenseInvalid);
+      // worker が日本語メッセージ（3台制限など）を返していればそれを優先表示
+      setError(result.message ?? (result.error === 'network' ? copy.licenseNetworkError : copy.licenseInvalid));
     }
     setBusy(false);
   }

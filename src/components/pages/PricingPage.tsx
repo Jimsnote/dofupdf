@@ -10,10 +10,8 @@ interface PricingPageProps {
   dict: Dictionary;
 }
 
-/** Hosted checkout URL comes from build-time env; placeholder until configured. */
-const CHECKOUT_URL =
-  process.env.NEXT_PUBLIC_LEMONSQUEEZY_CHECKOUT_URL ??
-  'https://dofupdf.lemonsqueezy.com/checkout/buy/PLACEHOLDER';
+/** Payhip hosted checkout — opens in a new tab (W2.5 migration). */
+const CHECKOUT_URL = 'https://payhip.com/b/8fZxV';
 
 /**
  * /pricing/ — DofuPDF Pro（買い切り ¥4,980）。Copy is verbatim from the W2/W3

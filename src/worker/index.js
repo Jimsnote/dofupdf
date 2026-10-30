@@ -83,16 +83,26 @@ const BODY = `<!doctype html>
 `;
 
 /**
- * License endpoints (W2/W3): the browser never holds the Lemon Squeezy API
- * key — it only talks to these routes, and the worker calls the License API.
+ * License endpoints (W2.5, Payhip): the browser never holds the Payhip
+ * product secret — it only talks to these routes, and the worker calls the
+ * Payhip License API (base https://payhip.com/api/v2, auth header
+ * `product-secret-key`). Payhip has no hard activation cap, so the 3-device
+ * quota is enforced HERE with Workers KV (`LICENSE_KV`) as the authoritative
+ * record: KV key = `act:{sha256(key + ':' + deviceId)}`, value = key, and the
+ * license key is mirrored into the entry metadata so the quota count can be
+ * derived from `list({ prefix: 'act:' })` without extra reads.
+ *
  * Without env config the worker runs in DEMO mode: the key DEMO-PRO-0000-0000
- * behaves like a real Pro key (for local E2E), and responses carry
- * `X-License-Mode: demo` so the UI can show a DEMO badge.
+ * behaves like a real Pro key (same KV-based quota, for local E2E), and
+ * responses carry `X-License-Mode: demo` so the UI can show a DEMO badge.
+ * Once PAYHIP_PRODUCT_SECRET is configured, the DEMO key stops working
+ * (Payhip verify rejects it).
  *
  * Privacy: only the license key travels. PDFs and passwords never do.
  */
 const DEMO_KEY = 'DEMO-PRO-0000-0000';
-const LS_API = 'https://api.lemonsqueezy.com/v1/licenses';
+const PAYHIP_API = 'https://payhip.com/api/v2';
+const DEVICE_LIMIT = 3;
 
 /** Naive per-IP rate limit: 10 requests/minute (in-memory, per isolate). */
 const rateBuckets = new Map();
@@ -116,20 +126,111 @@ function json(data, { status = 200, demo = false } = {}) {
 }
 
 function licenseEnvReady(env) {
-  return Boolean(env.LEMONSQUEEZY_API_KEY && env.LEMONSQUEEZY_STORE_ID && env.LEMONSQUEEZY_PRODUCT_ID);
+  return Boolean(env.PAYHIP_PRODUCT_SECRET);
 }
 
-async function lsCall(env, path, body) {
-  const res = await fetch(`${LS_API}${path}`, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${env.LEMONSQUEEZY_API_KEY}`,
-      accept: 'application/vnd.api+json',
-      'content-type': 'application/vnd.api+json',
-    },
-    body: JSON.stringify(body),
+async function sha256Hex(input) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** KV key for one (license key, device) activation pair. */
+async function activationKey(licenseKey, deviceId) {
+  return `act:${await sha256Hex(`${licenseKey}:${deviceId}`)}`;
+}
+
+/**
+ * Payhip license verify. Returns {enabled} for a well-formed answer and
+ * {enabled:false} for a 404 (key does not exist); any other upstream failure
+ * (network error, timeout, 5xx, unparsable body) returns null so the caller
+ * decides how to degrade. 10s timeout: a hanging Payhip must not hang the API.
+ */
+const PAYHIP_TIMEOUT_MS = 10_000;
+
+async function payhipVerify(env, licenseKey) {
+  let res;
+  try {
+    res = await fetch(`${PAYHIP_API}/license/verify?license_key=${encodeURIComponent(licenseKey)}`, {
+      headers: { 'product-secret-key': env.PAYHIP_PRODUCT_SECRET },
+      signal: AbortSignal.timeout(PAYHIP_TIMEOUT_MS),
+    });
+  } catch {
+    return null;
+  }
+  if (res.status === 404) return { enabled: false };
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  return { enabled: Boolean(data?.data?.enabled) };
+}
+
+/** Payhip usage counter: PUT /license/usage (+1) or /license/decrease (-1). */
+async function payhipUsage(env, licenseKey, path) {
+  try {
+    const res = await fetch(`${PAYHIP_API}/license/${path}`, {
+      method: 'PUT',
+      headers: {
+        'product-secret-key': env.PAYHIP_PRODUCT_SECRET,
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ license_key: licenseKey }).toString(),
+      signal: AbortSignal.timeout(PAYHIP_TIMEOUT_MS),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Count activated devices for one license key. The KV key hashes key and
+ * device together, so a single key's devices cannot share a list prefix —
+ * the license key is therefore mirrored into the entry metadata and counted
+ * by filtering the global `act:` prefix (KV list returns metadata with no
+ * extra reads).
+ */
+async function countDevices(kv, licenseKey) {
+  let cursor;
+  let count = 0;
+  do {
+    const page = await kv.list({ prefix: 'act:', cursor });
+    for (const entry of page.keys) {
+      if (entry.metadata?.key === licenseKey) count += 1;
+    }
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  return count;
+}
+
+async function findActivation(kv, licenseKey, deviceId) {
+  return (await kv.get(await activationKey(licenseKey, deviceId))) !== null;
+}
+
+async function writeActivation(kv, licenseKey, deviceId) {
+  await kv.put(await activationKey(licenseKey, deviceId), licenseKey, {
+    metadata: { key: licenseKey },
   });
-  return res.json();
+}
+
+/** Deletes the record; returns true when one existed (caller decreases usage). */
+async function deleteActivation(kv, licenseKey, deviceId) {
+  const kvKey = await activationKey(licenseKey, deviceId);
+  const existed = (await kv.get(kvKey)) !== null;
+  if (existed) await kv.delete(kvKey);
+  return existed;
+}
+
+function invalidKey(demo) {
+  return json(
+    { ok: false, error: 'invalid_key', message: 'ライセンスキーが無効です' },
+    { status: 403, demo },
+  );
+}
+
+function deviceLimitReached(demo) {
+  return json(
+    { ok: false, error: 'device_limit', message: 'ライセンスは3台までです' },
+    { status: 403, demo },
+  );
 }
 
 async function handleLicense(request, env, action) {
@@ -144,55 +245,96 @@ async function handleLicense(request, env, action) {
     return json({ error: 'bad_request' }, { status: 400 });
   }
   const key = typeof payload.key === 'string' ? payload.key.trim() : '';
+  const deviceId = typeof payload.deviceId === 'string' ? payload.deviceId.trim() : '';
   if (!key) return json({ error: 'missing_key' }, { status: 400 });
+  if (!deviceId || deviceId.length > 128) return json({ error: 'missing_device' }, { status: 400 });
 
   const demo = !licenseEnvReady(env);
-  if (demo) {
-    // DEMO 模式：固定キーのみ受理、挙動は本番と同一
-    if (key !== DEMO_KEY) {
-      return json({ valid: false, error: 'invalid_key' }, { status: 200, demo: true });
-    }
-    if (action === 'activate') {
-      return json({ valid: true, instance_id: 'demo-instance-1' }, { demo: true });
-    }
-    if (action === 'validate') {
-      return json({ valid: true, instance_id: payload.instance_id ?? 'demo-instance-1' }, { demo: true });
-    }
-    return json({ deactivated: true }, { demo: true });
-  }
+  const kv = env.LICENSE_KV ?? null;
 
-  try {
-    if (action === 'activate') {
-      const data = await lsCall(env, '/activate', {
-        license_key: key,
-        instance_name: payload.instance_name ?? 'browser',
-      });
-      if (data.activated) {
-        return json({
-          valid: true,
-          instance_id: data.instance?.id ?? null,
-          expires: data.license_key?.expires_at ?? null,
-        });
+  if (demo) {
+    // DEMO モード：固定キーのみ受理。3台制限も同じ KV 経路で再現し、本番と同一挙動にする。
+    if (key !== DEMO_KEY) {
+      if (action === 'status') {
+        return json({ valid: false, activatedOnThisDevice: false, devices: 0 }, { demo: true });
       }
-      return json({ valid: false, error: data.error ?? 'invalid_key' });
+      return invalidKey(true);
     }
-    if (action === 'validate') {
-      const data = await lsCall(env, '/validate', {
-        license_key: key,
-        instance_id: payload.instance_id ?? null,
-      });
-      return json({
-        valid: Boolean(data.valid),
-        instance_id: data.instance?.id ?? payload.instance_id ?? null,
-        expires: data.license_key?.expires_at ?? null,
-      });
+    if (!kv) {
+      // KV バインディング欠落（設定ミス）: 枠チェックを省略して旧 W2 挙動にフォールバック。
+      if (action === 'activate') return json({ ok: true, remaining: DEVICE_LIMIT - 1 }, { demo: true });
+      if (action === 'status') {
+        return json({ valid: true, activatedOnThisDevice: false, devices: 0 }, { demo: true });
+      }
+      return json({ ok: true }, { demo: true });
+    }
+    if (action === 'activate') {
+      if (await findActivation(kv, key, deviceId)) {
+        // 同一端末の再 activate は枠を消費しない
+        return json(
+          { ok: true, remaining: Math.max(0, DEVICE_LIMIT - (await countDevices(kv, key))) },
+          { demo: true },
+        );
+      }
+      const devices = await countDevices(kv, key);
+      if (devices >= DEVICE_LIMIT) return deviceLimitReached(true);
+      await writeActivation(kv, key, deviceId);
+      return json({ ok: true, remaining: Math.max(0, DEVICE_LIMIT - devices - 1) }, { demo: true });
+    }
+    if (action === 'status') {
+      return json(
+        {
+          valid: true,
+          activatedOnThisDevice: await findActivation(kv, key, deviceId),
+          devices: await countDevices(kv, key),
+        },
+        { demo: true },
+      );
     }
     // deactivate
-    const data = await lsCall(env, '/deactivate', {
-      license_key: key,
-      instance_id: payload.instance_id ?? null,
-    });
-    return json({ deactivated: Boolean(data.deactivated) });
+    await deleteActivation(kv, key, deviceId);
+    return json({ ok: true }, { demo: true });
+  }
+
+  // 本番モード：キーの有効性は Payhip、デバイス枠の権威記録は KV。
+  try {
+    if (action === 'activate') {
+      // 仕様: enabled:false も通信故障も 403「無効」扱い。
+      const verified = await payhipVerify(env, key);
+      if (!verified || !verified.enabled) return invalidKey(false);
+      if (!kv) return json({ error: 'server_misconfig' }, { status: 500 });
+      if (await findActivation(kv, key, deviceId)) {
+        return json({
+          ok: true,
+          remaining: Math.max(0, DEVICE_LIMIT - (await countDevices(kv, key))),
+        });
+      }
+      const devices = await countDevices(kv, key);
+      if (devices >= DEVICE_LIMIT) return deviceLimitReached(false);
+      if (!(await payhipUsage(env, key, 'usage'))) {
+        // usage 呼び出しが失敗したら KV には書かず 500（次回リトライでやり直せる）。
+        return json({ ok: false, error: 'upstream_unavailable' }, { status: 500 });
+      }
+      await writeActivation(kv, key, deviceId);
+      return json({ ok: true, remaining: Math.max(0, DEVICE_LIMIT - devices - 1) });
+    }
+    if (action === 'status') {
+      const verified = await payhipVerify(env, key);
+      if (!verified) return json({ error: 'upstream_unavailable' }, { status: 502 });
+      if (!verified.enabled) {
+        return json({ valid: false, activatedOnThisDevice: false, devices: 0 });
+      }
+      if (!kv) return json({ error: 'server_misconfig' }, { status: 500 });
+      return json({
+        valid: true,
+        activatedOnThisDevice: await findActivation(kv, key, deviceId),
+        devices: await countDevices(kv, key),
+      });
+    }
+    // deactivate: 記録が存在した端末の分だけ Payhip の使用数を -1。
+    const removed = kv ? await deleteActivation(kv, key, deviceId) : false;
+    if (removed) await payhipUsage(env, key, 'decrease');
+    return json({ ok: true });
   } catch {
     return json({ error: 'upstream_unavailable' }, { status: 502 });
   }
@@ -212,7 +354,7 @@ const siteWorker = {
         },
       });
     }
-    const licenseMatch = /^\/api\/license\/(activate|validate|deactivate)$/.exec(path);
+    const licenseMatch = /^\/api\/license\/(activate|status|deactivate)$/.exec(path);
     if (licenseMatch) {
       if (request.method !== 'POST') {
         return json({ error: 'method_not_allowed' }, { status: 405 });

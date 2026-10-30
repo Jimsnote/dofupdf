@@ -13,6 +13,8 @@ public/tesseract/
 # env files
 .env
 .env*.local
+# wrangler local secrets (Worker env vars for `wrangler dev`)
+.dev.vars
 
 # logs
 *.log
@@ -35,3 +37,6 @@ docs/
 
 # Wrangler local dev state
 .wrangler/
+
+# WorkBuddy workspace data (memory/logs)
+.workbuddy/
