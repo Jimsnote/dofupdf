@@ -6,8 +6,8 @@ interface TokushohoPageProps {
 }
 
 /**
- * /tokushoho/ — 特定商取引法に基づく表記。運営者情報の 3 か所（氏名・住所・
- * メールアドレス）は【要運営者入力】のまま残す（W2.5 定稿）。
+ * /tokushoho/ — 特定商取引法に基づく表記。運営者情報（氏名・所在地・
+ * 連絡先）は W2.5 定稿どおり記載済み。
  */
 export function TokushohoPage({ dict }: TokushohoPageProps) {
   const copy = dict.tokushoho;

@@ -32,7 +32,7 @@ const allow = new Set([
   'Protect', 'Unlock', 'Rotate', 'Organize', 'Watermark', 'Sign', 'Extract', 'Remove', 'Convert', 'Cloud', 'Office', 'Web', 'Http', 'Https',
   'preview', 'split', 'merge', 'compress', 'unlock', 'protect', 'rotate', 'organized', 'extracted', 'removed', 'reordered',
   'merged', 'converted', 'compressed', 'watermarked', 'signed', 'protected', 'unlocked', 'example', 'CONFIDENTIAL',
-  'Network', 'Cookie', 'Google', 'JavaScript', 'EEA', 'HEVC',
+  'Network', 'Cookie', 'Google', 'JavaScript', 'EEA', 'HEVC', 'SOHO',
   'removed', 'reordered', 'html', 'json', 'ld', 'data', 'label', 'url', 'slug', 'title', 'description', 'verdict',
 ]);
 
