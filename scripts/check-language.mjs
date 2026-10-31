@@ -26,13 +26,13 @@ const allow = new Set([
   'DofuPDF', 'dofupdf', 'Delete', 'Chrome', 'Edge', 'Firefox', 'DRM', 'Safari',
   'PDF', 'DPI', 'MB', 'KB', 'ZIP', 'zip', 'pdf', 'png', 'svg', 'jpg', 'jpeg', 'heic', 'heif', 'gif', 'webp', 'md', 'docx', 'xlsx', 'pptx',
   'markdown', 'Markdown', 'macOS', 'iOS', 'iPhone', 'iPad', 'Wi', 'Adobe', 'Acrobat', 'Ghostscript', 'WebAssembly', 'Wiki', 'Pandoc', 'ChatGPT', 'Claude', 'README', 'Docs', 'GitLab', 'CSV',
-  'Tesseract', 'qpdf', 'libheif', 'Word', 'Excel', 'LibreOffice', 'Notion', 'Obsidian', 'GitHub', 'AES', 'OCR', 'QR', 'Helvetica', 'Draw', 'EXIF',
+  'Tesseract', 'qpdf', 'libheif', 'Word', 'Excel', 'LibreOffice', 'Notion', 'Obsidian', 'GitHub', 'AES', 'OCR', 'QR', 'Helvetica', 'Draw', 'EXIF', 'Finder', 'Pages', 'Numbers', 'Keynote',
   'NDA', 'A4', 'eIDAS', 'ESIGN', 'Pro', 'Extreme', 'Recommended', 'Light', 'Quartz', 'Print', 'print', 'from', 'to', 'TIFF', 'JPEG', 'GIF', 'HEIC', 'WebP',
   'DIY', 'Microsoft', 'Mac', 'Android', 'PPAP', 'Preview', 'Sheet', 'name', 'https', 'com', 'www', 'png', 'jpg', 'Split', 'Merge', 'Compress', 'Windows', 'Bates', 'iLovePDF', 'API', 'LocalPDF', 'ToolPDFs', 'Sejda', 'PDF24', 'Creator', 'JSON', 'Smallpdf', 'TLS',
   'Protect', 'Unlock', 'Rotate', 'Organize', 'Watermark', 'Sign', 'Extract', 'Remove', 'Convert', 'Cloud', 'Office', 'Web', 'Http', 'Https',
   'preview', 'split', 'merge', 'compress', 'unlock', 'protect', 'rotate', 'organized', 'extracted', 'removed', 'reordered',
   'merged', 'converted', 'compressed', 'watermarked', 'signed', 'protected', 'unlocked', 'example', 'CONFIDENTIAL',
-  'Network', 'Cookie', 'Google', 'JavaScript', 'EEA', 'HEVC', 'SOHO',
+  'Network', 'Cookie', 'Google', 'JavaScript', 'EEA', 'HEVC', 'SOHO', 'LINE', 'SMS', 'OneDrive',
   'removed', 'reordered', 'html', 'json', 'ld', 'data', 'label', 'url', 'slug', 'title', 'description', 'verdict',
 ]);
 
