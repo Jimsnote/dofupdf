@@ -11,6 +11,9 @@ import { excelPdfPassword } from './excel-pdf-password';
 import { pdfPasswordSetteiDekinai } from './pdf-password-settei-dekinai';
 import { pdfPasswordChange } from './pdf-password-change';
 import { pdfPasswordCheck } from './pdf-password-check';
+import { invoiceSeikyushoPdfRestriction } from './invoice-seikyusho-pdf-restriction';
+import { rirekishoShokumukeirekishoPdfPassword } from './rirekisho-shokumukeirekisho-pdf-password';
+import { companyConfidentialPdfLocalTool } from './company-confidential-pdf-local-tool';
 
 /**
  * Central guide registry, in display order. Guides are Japanese long-form
@@ -38,6 +41,10 @@ export const guides: Guide[] = [
   pdfPasswordSetteiDekinai,
   pdfPasswordChange,
   pdfPasswordCheck,
+  // W5 scenario cluster (B2B / job seekers / corporate IT)
+  invoiceSeikyushoPdfRestriction,
+  rirekishoShokumukeirekishoPdfPassword,
+  companyConfidentialPdfLocalTool,
 ];
 
 /** Looks up a guide by its URL slug. */

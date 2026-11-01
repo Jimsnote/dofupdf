@@ -17,21 +17,41 @@ const linkClass =
   'font-medium text-brand-700 underline decoration-brand-200 underline-offset-2 hover:text-brand-800';
 
 /**
- * Renders inline [label](/path/) links inside guide copy. Anything that is
- * not a well-formed, site-relative link passes through as plain text.
+ * Renders inline [label](/path/) links inside guide copy. Site-relative links
+ * become Next Links; the project's own GitHub repo (allowlisted prefix) may
+ * be linked externally (new tab, noopener). Anything else passes through as
+ * plain text — arbitrary external links never render from guide data.
  */
+const EXTERNAL_LINK_PREFIX = /^https:\/\/github\.com\/Jimsnote\/dofupdf/;
+
 function renderInline(text: string): ReactNode {
   const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g);
   return parts.map((part, index) => {
     const match = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
-    if (!match || !match[2].startsWith('/')) {
+    if (!match) {
       return <Fragment key={index}>{part}</Fragment>;
     }
-    return (
-      <Link key={index} href={match[2]} className={linkClass}>
-        {match[1]}
-      </Link>
-    );
+    if (match[2].startsWith('/')) {
+      return (
+        <Link key={index} href={match[2]} className={linkClass}>
+          {match[1]}
+        </Link>
+      );
+    }
+    if (EXTERNAL_LINK_PREFIX.test(match[2])) {
+      return (
+        <a
+          key={index}
+          href={match[2]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={linkClass}
+        >
+          {match[1]}
+        </a>
+      );
+    }
+    return <Fragment key={index}>{part}</Fragment>;
   });
 }
 
@@ -192,6 +212,41 @@ export function GuidePage({ guide }: GuidePageProps) {
                 </li>
               ))}
             </ul>
+          ) : null}
+          {section.table ? (
+            <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-slate-50">
+                    {section.table.headers.map((header) => (
+                      <th
+                        key={header}
+                        scope="col"
+                        className="px-4 py-2.5 text-left font-semibold text-slate-900"
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {section.table.rows.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {row.map((cell, cellIndex) => (
+                        <td
+                          key={cellIndex}
+                          className={`px-4 py-2.5 align-top leading-relaxed text-slate-700 ${
+                            cellIndex === 0 ? 'font-medium text-slate-900' : ''
+                          }`}
+                        >
+                          {renderInline(cell)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : null}
           {section.image ? (
             // Screenshots are optional assets generated later; a missing file

@@ -10,6 +10,8 @@ export interface GuideSection {
   heading: string;
   paragraphs: string[];
   bullets?: string[];
+  /** Optional comparison table (rendered after bullets). */
+  table?: { headers: string[]; rows: string[][] };
   image?: GuideImage;
 }
 
