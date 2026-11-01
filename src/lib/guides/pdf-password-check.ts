@@ -9,6 +9,8 @@ import type { Guide } from './types';
 export const pdfPasswordCheck: Guide = {
   slug: 'pdf-password-check',
   toolSlug: 'unlock-pdf',
+  datePublished: '2026-10-31',
+  dateModified: '2026-10-31',
   title: 'PDFにパスワードがかかっているか確認する方法',
   metaTitle: 'PDFにパスワードがかかっているか確認する方法',
   description:

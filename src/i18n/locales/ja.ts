@@ -123,8 +123,8 @@ export const ja = {
         },
         {
           title: 'コードを検証する',
-          description:
-            '私たちのコードはオープンソース(AGPL-3.0)です。GitHubで確かめてください。',
+          description: '私たちのコードはオープンソース(AGPL-3.0)です。',
+          linkText: 'GitHubで確かめてください',
         },
       ],
     },

@@ -10,6 +10,8 @@ import type { Guide } from './types';
 export const ppapPdfPassword: Guide = {
   slug: 'ppap-pdf-password',
   toolSlug: 'protect-pdf',
+  datePublished: '2026-10-31',
+  dateModified: '2026-10-31',
   title: 'PPAPの代わりにパスワード付きPDFを送る方法',
   metaTitle: 'PPAPの代わりにパスワード付きPDFを送る方法',
   description:

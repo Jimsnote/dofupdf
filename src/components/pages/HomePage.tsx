@@ -193,7 +193,23 @@ export function HomePage({ locale, dict }: HomePageProps) {
               <h3 className="text-sm font-semibold uppercase tracking-wide text-brand-700">
                 {item.title}
               </h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.description}</p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                {item.description}
+                {'linkText' in item && item.linkText ? (
+                  <>
+                    {' '}
+                    <a
+                      href={GITHUB_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-brand-700 underline decoration-brand-200 underline-offset-2 hover:text-brand-800"
+                    >
+                      {item.linkText}
+                    </a>
+                    。
+                  </>
+                ) : null}
+              </p>
             </div>
           ))}
         </div>

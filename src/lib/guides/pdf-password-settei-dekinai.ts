@@ -9,6 +9,8 @@ import type { Guide } from './types';
 export const pdfPasswordSetteiDekinai: Guide = {
   slug: 'pdf-password-settei-dekinai',
   toolSlug: 'unlock-pdf',
+  datePublished: '2026-10-31',
+  dateModified: '2026-10-31',
   title: 'PDFにパスワードが設定できない原因と対処法',
   metaTitle: 'PDFにパスワードが設定できない原因と対処法',
   description:

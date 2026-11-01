@@ -8,6 +8,8 @@ import type { Guide } from './types';
 export const pdfPasswordKakeMac: Guide = {
   slug: 'pdf-password-kake-mac',
   toolSlug: 'protect-pdf',
+  datePublished: '2026-10-31',
+  dateModified: '2026-10-31',
   title: 'PDFにパスワードをかける方法（Mac）',
   metaTitle: 'PDFにパスワードをかける方法（Mac）— プレビューでもブラウザでも',
   description:

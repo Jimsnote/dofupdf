@@ -9,6 +9,8 @@ import type { Guide } from './types';
 export const pdfPasswordChange: Guide = {
   slug: 'pdf-password-change',
   toolSlug: 'unlock-pdf',
+  datePublished: '2026-10-31',
+  dateModified: '2026-10-31',
   title: 'PDFのパスワードを変更する方法（忘れた場合も含む）',
   metaTitle: 'PDFのパスワードを変更する方法（忘れた場合も含む）',
   description:

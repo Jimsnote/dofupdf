@@ -8,6 +8,8 @@ import type { Guide } from './types';
 export const pdfPasswordKakeMobile: Guide = {
   slug: 'pdf-password-kake-mobile',
   toolSlug: 'protect-pdf',
+  datePublished: '2026-10-31',
+  dateModified: '2026-10-31',
   title: 'iPhone・AndroidでPDFにパスワードをかける方法',
   metaTitle: 'iPhone・AndroidでPDFにパスワードをかける方法',
   description:

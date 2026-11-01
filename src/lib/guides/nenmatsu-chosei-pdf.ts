@@ -9,6 +9,8 @@ import type { Guide } from './types';
 export const nenmatsuChoseiPdf: Guide = {
   slug: 'nenmatsu-chosei-pdf',
   toolSlug: 'protect-pdf',
+  datePublished: '2026-10-31',
+  dateModified: '2026-10-31',
   title: '年末調整の書類PDFにパスワードをかける方法',
   metaTitle: '年末調整の書類PDFにパスワードをかける方法',
   description:

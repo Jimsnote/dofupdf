@@ -8,6 +8,8 @@ import type { Guide } from './types';
 export const pdfPasswordKakeWindows: Guide = {
   slug: 'pdf-password-kake-windows',
   toolSlug: 'protect-pdf',
+  datePublished: '2026-10-31',
+  dateModified: '2026-10-31',
   title: 'PDFにパスワードをかける方法（Windows）',
   metaTitle: 'PDFにパスワードをかける方法（Windows）— 無料・インストール不要',
   description:

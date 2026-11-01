@@ -9,6 +9,8 @@ import type { Guide } from './types';
 export const howToPasswordProtectPdf: Guide = {
   slug: 'how-to-password-protect-pdf',
   toolSlug: 'protect-pdf',
+  datePublished: '2026-09-29',
+  dateModified: '2026-10-28',
   title: 'PDFにパスワードをかける方法',
   metaTitle: 'PDFにパスワードをかける方法【無料・Windows/Mac/スマホ対応】 | DofuPDF',
   description:

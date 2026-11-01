@@ -7,6 +7,8 @@ import type { Guide } from './types';
 export const howToUnlockPdf: Guide = {
   slug: 'how-to-unlock-pdf',
   toolSlug: 'unlock-pdf',
+  datePublished: '2026-09-29',
+  dateModified: '2026-10-28',
   title: 'パスワードを知っているPDFのロックを解除する方法',
   description:
     '所有するPDFのロック解除の手順。パスワードを知っているファイルのみ対象で、ブラウザ内でローカルに処理。アップロードなし、無料。',

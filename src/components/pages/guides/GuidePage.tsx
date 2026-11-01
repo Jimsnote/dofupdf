@@ -51,6 +51,10 @@ export function GuidePage({ guide }: GuidePageProps) {
     '@type': 'Article',
     headline: guide.title,
     description: guide.description,
+    inLanguage: 'ja',
+    // Hardcoded per-guide dates (types.ts); omitted for guides without them.
+    ...(guide.datePublished ? { datePublished: guide.datePublished } : {}),
+    ...(guide.dateModified ? { dateModified: guide.dateModified } : {}),
     mainEntityOfPage: url,
     author: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },
     publisher: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },

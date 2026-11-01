@@ -9,6 +9,8 @@ import type { Guide } from './types';
 export const excelPdfPassword: Guide = {
   slug: 'excel-pdf-password',
   toolSlug: 'protect-pdf',
+  datePublished: '2026-10-31',
+  dateModified: '2026-10-31',
   title: 'ExcelをPDFに変換してパスワードをかける方法',
   metaTitle: 'ExcelをPDFに変換してパスワードをかける方法',
   description:

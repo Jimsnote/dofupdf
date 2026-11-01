@@ -9,6 +9,8 @@ import type { Guide } from './types';
 export const kakuteiShinkokuPdfPassword: Guide = {
   slug: 'kakutei-shinkoku-pdf-password',
   toolSlug: 'protect-pdf',
+  datePublished: '2026-10-31',
+  dateModified: '2026-10-31',
   title: '確定申告のPDFにパスワードをかける方法（本人確認書類の送付）',
   metaTitle: '確定申告のPDFにパスワードをかける方法（本人確認書類の送付）',
   description:

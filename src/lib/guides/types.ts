@@ -53,6 +53,13 @@ export interface Guide {
   title: string;
   /** Full meta title when it must differ from `${title} | DofuPDF`. */
   metaTitle?: string;
+  /**
+   * Publication date (ISO `YYYY-MM-DD`, hardcoded — never `new Date()`):
+   * the earliest commit date of this data file. Feeds Article JSON-LD.
+   */
+  datePublished?: string;
+  /** Last substantive update (ISO date, hardcoded); latest commit of the file. */
+  dateModified?: string;
   /** Meta description, <= 160 chars. */
   description: string;
   /** Direct-answer opening paragraph (60-80 words), doubles as a GEO summary. */
