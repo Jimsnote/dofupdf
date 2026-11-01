@@ -1,3 +1,5 @@
+[日本語のREADMEはこちら](./README.ja.md)
+
 # DofuPDF
 
 **Free PDF tools that respect your privacy.** DofuPDF is a privacy-first, 100% client-side PDF toolkit for the web — think ilovepdf.com, except your files never leave your device. All PDF processing runs in the browser (WebAssembly / Web Workers); there is no backend at all.
