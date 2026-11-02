@@ -10,7 +10,10 @@
  * - 跨源请求（Clarity/CF Analytics 等）一律不拦截。
  *
  * 更新机制：本文件以 Cache-Control: no-cache 提供（见 public/_headers），
- * 内容变化时浏览器重新安装，VERSION 递增会清掉旧版本缓存。
+ * 内容变化时浏览器重新安装。缓存键里的 VERSION 只是固定命名空间，从未
+ * 递增也不需要递增——静态产物自带 URL 哈希（新部署 = 新 URL），activate
+ * 时只清理旧品牌（noripdf-/coolpdf-）的遗留缓存。不要把 VERSION 当成
+ * 发布流程的一部分。
  */
 
 const VERSION = 'v1';

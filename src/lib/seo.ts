@@ -22,8 +22,8 @@ export interface Alternates {
 }
 
 /**
- * Builds canonical + hreflang alternates for a logical path shared by all
- * locales (e.g. '/about'). `x-default` always points at the English version.
+ * Builds canonical + hreflang alternates for a logical path. The site is
+ * Japanese-only: `ja` and `x-default` both point at the same root-path URL.
  */
 export function buildAlternates(path: string, locale: Locale = defaultLocale): Alternates {
   const languages: Record<string, string> = {};
