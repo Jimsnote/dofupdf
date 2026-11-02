@@ -303,9 +303,12 @@ async function handleLicense(request, env, action) {
   // 本番モード：キーの有効性は Payhip、デバイス枠の権威記録は KV。
   try {
     if (action === 'activate') {
-      // 仕様: enabled:false も通信故障も 403「無効」扱い。
+      // 仕様: 通信故障(null)は 502 upstream_unavailable（status パスと同一口径）、
+      // enabled:false のみ 403「無効」。Payhip 障害中に有効キーを「無効」と
+      // 報告しないための区別。
       const verified = await payhipVerify(env, key);
-      if (!verified || !verified.enabled) return invalidKey(false);
+      if (!verified) return json({ ok: false, error: 'upstream_unavailable' }, { status: 502 });
+      if (!verified.enabled) return invalidKey(false);
       if (!kv) return json({ error: 'server_misconfig' }, { status: 500 });
       if (await findActivation(kv, key, deviceId)) {
         return json({

@@ -9,7 +9,9 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/_next/', '/api/'],
+        // Only /api/ stays off-limits: blocking /_next/ would also block the
+        // hashed JS/CSS assets Google needs to render the page.
+        disallow: ['/api/'],
       },
       {
         // Explicitly welcome AI crawlers (GEO).
