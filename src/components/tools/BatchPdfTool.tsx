@@ -76,9 +76,12 @@ export function BatchPdfTool({ dict, mode }: BatchPdfToolProps) {
   const [result, setResult] = useState<Result | null>(null);
 
   const nextId = useRef(0);
+  // 批处理中断用。アンマウント時は必ず abort して裏のループを止める。
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) setMaxSizeBytes(MOBILE_MAX_BYTES);
+    return () => abortRef.current?.abort();
   }, []);
 
   useEffect(() => {
@@ -131,6 +134,8 @@ export function BatchPdfTool({ dict, mode }: BatchPdfToolProps) {
     setError(null);
     setResult(null);
     setPartialNote(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
     const finalNames = applyNameRuleBatch(
       rows.map((row) => row.file.name),
       pro ? nameRule : 'original',
@@ -138,8 +143,11 @@ export function BatchPdfTool({ dict, mode }: BatchPdfToolProps) {
     const zip = new JSZip();
     const log: BatchLogRow[] = [];
     let failed = 0;
+    let completed = 0;
+    let aborted = false;
     try {
       for (let i = 0; i < rows.length; i += 1) {
+        if (controller.signal.aborted) break;
         const row = rows[i];
         patch(row.id, { status: 'working', error: undefined });
         const processedAt = new Date().toISOString();
@@ -147,22 +155,29 @@ export function BatchPdfTool({ dict, mode }: BatchPdfToolProps) {
           const bytes = new Uint8Array(await row.file.arrayBuffer());
           let output: Uint8Array;
           if (mode === 'protect') {
-            output = await protectPdf(bytes, password, DEFAULT_PROTECT_PERMISSIONS, noop);
+            output = await protectPdf(bytes, password, DEFAULT_PROTECT_PERMISSIONS, noop, controller.signal);
           } else if (changeMode) {
-            const unlocked = await unlockPdf(bytes, currentPassword, noop);
-            output = await protectPdf(unlocked, password, DEFAULT_PROTECT_PERMISSIONS, noop);
+            const unlocked = await unlockPdf(bytes, currentPassword, noop, controller.signal);
+            output = await protectPdf(unlocked, password, DEFAULT_PROTECT_PERMISSIONS, noop, controller.signal);
           } else {
-            output = await unlockPdf(bytes, password, noop);
+            output = await unlockPdf(bytes, password, noop, controller.signal);
           }
           zip.file(finalNames[i], output);
+          completed += 1;
           patch(row.id, { status: 'done' });
           log.push({
             originalName: row.file.name,
             outputName: finalNames[i],
             status: batch.statusDone,
-            processedAt,
+            processedAt: new Date().toISOString(),
           });
         } catch (err) {
+          if (controller.signal.aborted) {
+            // 中断：進行中のファイルは待機に戻し、失敗として数えない
+            patch(row.id, { status: 'idle' });
+            aborted = true;
+            break;
+          }
           failed += 1;
           const message = toolErrorMessage(err, dict);
           patch(row.id, { status: 'failed', error: message });
@@ -170,9 +185,27 @@ export function BatchPdfTool({ dict, mode }: BatchPdfToolProps) {
             originalName: row.file.name,
             outputName: '',
             status: `${batch.statusFailed}（${message}）`,
-            processedAt,
+            processedAt: new Date().toISOString(),
           });
         }
+      }
+      if (aborted) {
+        // 中断：完了分はダウンロード可能に残し、エラー扱いしない
+        if (completed > 0) {
+          if (pro) zip.file('log.csv', buildLogCsv(log));
+          const blob = await zip.generateAsync({ type: 'blob' });
+          const name =
+            mode === 'protect'
+              ? 'protected-batch.zip'
+              : changeMode
+                ? 'changed-batch.zip'
+                : 'unlocked-batch.zip';
+          setResult({ name, size: blob.size, url: URL.createObjectURL(blob) });
+          setPartialNote(batch.interrupted.replace('{done}', String(completed)));
+        } else {
+          setPartialNote(batch.interruptedNone);
+        }
+        return;
       }
       if (failed === rows.length) {
         setError(ui.errors.generic);
@@ -186,6 +219,7 @@ export function BatchPdfTool({ dict, mode }: BatchPdfToolProps) {
       const name = mode === 'protect' ? 'protected-batch.zip' : changeMode ? 'changed-batch.zip' : 'unlocked-batch.zip';
       setResult({ name, size: blob.size, url: URL.createObjectURL(blob) });
     } finally {
+      abortRef.current = null;
       setBusy(false);
     }
   }
@@ -409,21 +443,32 @@ export function BatchPdfTool({ dict, mode }: BatchPdfToolProps) {
         ) : undefined
       }
       action={
-        <button
-          type="button"
-          onClick={() => void processBatch()}
-          disabled={rows.length === 0 || busy || !passwordOk}
-          className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : null}
-          {busy
-            ? ui.processing
-            : mode === 'protect'
-              ? batch.processProtect
-              : changeMode
-                ? batch.processChange
-                : batch.processUnlock}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void processBatch()}
+            disabled={rows.length === 0 || busy || !passwordOk}
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : null}
+            {busy
+              ? ui.processing
+              : mode === 'protect'
+                ? batch.processProtect
+                : changeMode
+                  ? batch.processChange
+                  : batch.processUnlock}
+          </button>
+          {busy ? (
+            <button
+              type="button"
+              onClick={() => abortRef.current?.abort()}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              {batch.interrupt}
+            </button>
+          ) : null}
+        </div>
       }
       status={
         <>

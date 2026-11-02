@@ -728,6 +728,9 @@ export const ja = {
         processUnlock: 'まとめて解除してZIPをダウンロード',
         processChange: 'まとめて変更してZIPをダウンロード',
         partialFailure: '{failed} 個のファイルが処理できませんでした。ZIP には成功したファイルとログが入ります。',
+        interrupt: '中断',
+        interrupted: '中断しました。完了した {done} 件は下の ZIP にまとめてあります。',
+        interruptedNone: '中断しました。完了したファイルはありません。',
         legalNoteBatch:
           'まとめて解除は、所有するか処理する権利のあるPDFのみにご利用ください。他人のファイルや、権利のない文書の保護を除去することはできません。',
       },
