@@ -88,17 +88,22 @@ const BODY = `<!doctype html>
  * Payhip License API (base https://payhip.com/api/v2, auth header
  * `product-secret-key`). Payhip has no hard activation cap, so the 3-device
  * quota is enforced HERE with Workers KV (`LICENSE_KV`) as the authoritative
- * record: KV key = `act:{sha256(key + ':' + deviceId)}`, value = key, and the
- * license key is mirrored into the entry metadata so the quota count can be
- * derived from `list({ prefix: 'act:' })` without extra reads.
+ * record. KV scheme (batch B, hashed): key = `act:{sha256(key + ':' + deviceId)}`,
+ * value = sha256(key), metadata.key = sha256(key) — the plaintext license key
+ * is never stored, so a leaked KV dump cannot enumerate keys. Entries written
+ * before batch B hold the plaintext key in value+metadata; every read path
+ * accepts both forms and lazily rewrites legacy entries into the hashed
+ * format, so no KV wipe is needed.
  *
- * Without env config the worker runs in DEMO mode: the key DEMO-PRO-0000-0000
- * behaves like a real Pro key (same KV-based quota, for local E2E), and
- * responses carry `X-License-Mode: demo` so the UI can show a DEMO badge.
- * Once PAYHIP_PRODUCT_SECRET is configured, the DEMO key stops working
- * (Payhip verify rejects it).
+ * DEMO mode is fail-closed (batch B): without PAYHIP_PRODUCT_SECRET the
+ * license API answers 503 `license_unavailable` unless ALLOW_DEMO is
+ * explicitly enabled (local development via `.dev.vars`; never in
+ * production). With ALLOW_DEMO the key DEMO-PRO-0000-0000 behaves like a
+ * real Pro key (same KV-based quota), and responses carry
+ * `X-License-Mode: demo` so the UI can show a DEMO badge.
  *
- * Privacy: only the license key travels. PDFs and passwords never do.
+ * Privacy: only the license key and the anonymous device id travel. PDFs and
+ * passwords never do.
  */
 const DEMO_KEY = 'DEMO-PRO-0000-0000';
 const PAYHIP_API = 'https://payhip.com/api/v2';
@@ -129,9 +134,23 @@ function licenseEnvReady(env) {
   return Boolean(env.PAYHIP_PRODUCT_SECRET);
 }
 
+/**
+ * ALLOW_DEMO gate (batch B): DEMO mode is opt-in for local development
+ * (`.dev.vars` / wrangler dev). Never set it in production — with the real
+ * secret configured it has no effect either way.
+ */
+function demoAllowed(env) {
+  return env.ALLOW_DEMO === 'true' || env.ALLOW_DEMO === true;
+}
+
 async function sha256Hex(input) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** sha256(licenseKey) hex — the only form of the key that is ever stored. */
+async function keyDigest(licenseKey) {
+  return sha256Hex(licenseKey);
 }
 
 /** KV key for one (license key, device) activation pair. */
@@ -188,30 +207,46 @@ async function payhipUsage(env, licenseKey, path) {
 /**
  * Count activated devices for one license key. The KV key hashes key and
  * device together, so a single key's devices cannot share a list prefix —
- * the license key is therefore mirrored into the entry metadata and counted
+ * the key digest is therefore mirrored into the entry metadata and counted
  * by filtering the global `act:` prefix (KV list returns metadata with no
- * extra reads).
+ * extra reads). Legacy pre-batch-B entries carry the plaintext key in
+ * metadata and still count (they migrate on the next findActivation touch).
  */
 async function countDevices(kv, licenseKey) {
+  const digest = await keyDigest(licenseKey);
   let cursor;
   let count = 0;
   do {
     const page = await kv.list({ prefix: 'act:', cursor });
     for (const entry of page.keys) {
-      if (entry.metadata?.key === licenseKey) count += 1;
+      const metaKey = entry.metadata?.key;
+      if (metaKey === digest || metaKey === licenseKey) count += 1;
     }
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
   return count;
 }
 
+/**
+ * Whether this (license key, device) pair is activated. A legacy entry that
+ * still stores the plaintext key is treated as a match and rewritten into
+ * the hashed format in the same breath (lazy migration, no KV wipe).
+ */
 async function findActivation(kv, licenseKey, deviceId) {
-  return (await kv.get(await activationKey(licenseKey, deviceId))) !== null;
+  const kvKey = await activationKey(licenseKey, deviceId);
+  const stored = await kv.get(kvKey);
+  if (stored === null) return false;
+  const digest = await keyDigest(licenseKey);
+  if (stored !== digest) {
+    await kv.put(kvKey, digest, { metadata: { key: digest } });
+  }
+  return true;
 }
 
 async function writeActivation(kv, licenseKey, deviceId) {
-  await kv.put(await activationKey(licenseKey, deviceId), licenseKey, {
-    metadata: { key: licenseKey },
+  const digest = await keyDigest(licenseKey);
+  await kv.put(await activationKey(licenseKey, deviceId), digest, {
+    metadata: { key: digest },
   });
 }
 
@@ -254,6 +289,12 @@ async function handleLicense(request, env, action) {
   if (!deviceId || deviceId.length > 128) return json({ error: 'missing_device' }, { status: 400 });
 
   const demo = !licenseEnvReady(env);
+  if (demo && !demoAllowed(env)) {
+    // Fail-closed（批次 B）：无 secret 且未显式开启 ALLOW_DEMO 时，绝不落入
+    // 公开 DEMO key —— license API 直接不可用（本地开发请在 .dev.vars 配
+    // ALLOW_DEMO=true；生产只配 PAYHIP_PRODUCT_SECRET）。
+    return json({ ok: false, error: 'license_unavailable' }, { status: 503 });
+  }
   const kv = env.LICENSE_KV ?? null;
 
   if (demo) {
