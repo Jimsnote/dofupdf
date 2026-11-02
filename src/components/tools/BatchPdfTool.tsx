@@ -99,7 +99,9 @@ export function BatchPdfTool({ dict, mode }: BatchPdfToolProps) {
     const room = PRO_BATCH_MAX - rows.length;
     const accepted = files.slice(0, Math.max(0, room));
     if (files.length > room) {
-      setError(ui.errors.tooManyFiles.replace('{max}', String(PRO_BATCH_MAX)));
+      // 無料枠と Pro で実際の上限が違う（3 / 50）——現在の状態をそのまま出す
+      const limit = pro ? PRO_BATCH_MAX : FREE_BATCH_MAX;
+      setError(ui.errors.tooManyFiles.replace('{max}', String(limit)));
     }
     if (accepted.length === 0) return;
     const totalBytes =
