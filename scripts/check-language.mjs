@@ -34,6 +34,7 @@ const allow = new Set([
   'merged', 'converted', 'compressed', 'watermarked', 'signed', 'protected', 'unlocked', 'example', 'CONFIDENTIAL',
   'Network', 'Cookie', 'Google', 'JavaScript', 'EEA', 'HEVC', 'SOHO', 'LINE', 'SMS', 'OneDrive', 'DevTools', 'SNS', 'XXXX',
   'removed', 'reordered', 'html', 'json', 'ld', 'data', 'label', 'url', 'slug', 'title', 'description', 'verdict',
+  'localStorage', 'IndexedDB', 'Payhip',
 ]);
 
 /** Copy files scanned when no explicit list is given. */

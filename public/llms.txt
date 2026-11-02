@@ -29,13 +29,27 @@ DofuPDFは無料のブラウザベースPDFツールです。既存のオンラ�
 - 利用規約: https://dofupdf.com/terms/
 - よくある質問: https://dofupdf.com/faq/
 - ツール一覧: https://dofupdf.com/tools/
+- Pro（価格とライセンス登録）: https://dofupdf.com/pricing/
 
 ## ガイド
 
-パスワード関連のステップバイステップガイド: https://dofupdf.com/guides/
+パスワード関連のステップバイステップガイド（全15編）: https://dofupdf.com/guides/
 
 - PDFにパスワードをかける方法: https://dofupdf.com/guides/how-to-password-protect-pdf/
 - パスワードを知っているPDFのロックを解除する方法: https://dofupdf.com/guides/how-to-unlock-pdf/
+- 年末調整の書類PDFにパスワードをかける方法: https://dofupdf.com/guides/nenmatsu-chosei-pdf/
+- 確定申告のPDFにパスワードをかける方法（本人確認書類の送付）: https://dofupdf.com/guides/kakutei-shinkoku-pdf-password/
+- PPAPの代わりにパスワード付きPDFを送る方法: https://dofupdf.com/guides/ppap-pdf-password/
+- PDFにパスワードをかける方法（Windows）: https://dofupdf.com/guides/pdf-password-kake-windows/
+- PDFにパスワードをかける方法（Mac）: https://dofupdf.com/guides/pdf-password-kake-mac/
+- iPhone・AndroidでPDFにパスワードをかける方法: https://dofupdf.com/guides/pdf-password-kake-mobile/
+- ExcelをPDFに変換してパスワードをかける方法: https://dofupdf.com/guides/excel-pdf-password/
+- PDFにパスワードが設定できない原因と対処法: https://dofupdf.com/guides/pdf-password-settei-dekinai/
+- PDFのパスワードを変更する方法（忘れた場合も含む）: https://dofupdf.com/guides/pdf-password-change/
+- PDFにパスワードがかかっているか確認する方法: https://dofupdf.com/guides/pdf-password-check/
+- 請求書・見積書PDFを編集不可にする方法（権限設定とパスワード）: https://dofupdf.com/guides/invoice-seikyusho-pdf-restriction/
+- 履歴書・職務経歴書のPDFにパスワードをかける方法（メール添付マナー付き）: https://dofupdf.com/guides/rirekisho-shokumukeirekisho-pdf-password/
+- 社内機密のPDFを無料オンラインツールに入れるリスクと安全な保護方法: https://dofupdf.com/guides/company-confidential-pdf-local-tool/
 
 ## 比較
 
