@@ -107,6 +107,11 @@ const BODY = `<!doctype html>
  */
 const DEMO_KEY = 'DEMO-PRO-0000-0000';
 const PAYHIP_API = 'https://payhip.com/api/v2';
+// Known limitation (accepted): KV is eventually consistent and
+// count-then-write is not atomic, so two devices activating the same key in
+// the same instant can both pass the DEVICE_LIMIT check (TOCTOU). Beating the
+// limit requires the key holder to race their own key, so the real-world
+// threat is low; a Durable Object would be the fix if it ever matters.
 const DEVICE_LIMIT = 3;
 
 /** Naive per-IP rate limit: 10 requests/minute (in-memory, per isolate). */
@@ -120,7 +125,14 @@ function rateLimited(ip) {
   }
   bucket.count += 1;
   rateBuckets.set(ip, bucket);
-  if (rateBuckets.size > 10_000) rateBuckets.clear();
+  if (rateBuckets.size > 10_000) {
+    // Evict the oldest buckets (never clear() — a flood of forged IPs must
+    // not reset everyone's remaining allowance).
+    const oldestFirst = [...rateBuckets.entries()].sort((a, b) => a[1].start - b[1].start);
+    for (const [key] of oldestFirst.slice(0, rateBuckets.size - 8_000)) {
+      rateBuckets.delete(key);
+    }
+  }
   return bucket.count > 10;
 }
 
