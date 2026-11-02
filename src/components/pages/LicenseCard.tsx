@@ -33,9 +33,11 @@ export function LicenseCard({ dict }: LicenseCardProps) {
         result.message ??
         (result.error === 'license_unavailable'
           ? copy.licenseUnavailable
-          : result.error === 'network'
-            ? copy.licenseNetworkError
-            : copy.licenseInvalid),
+          : result.error === 'storage'
+            ? copy.licenseStorageError
+            : result.error === 'network'
+              ? copy.licenseNetworkError
+              : copy.licenseInvalid),
       );
     }
     setBusy(false);

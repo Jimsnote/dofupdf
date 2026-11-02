@@ -117,7 +117,8 @@ export async function activateLicense(key: string): Promise<ApiResult> {
   const trimmed = key.trim();
   const deviceId = getDeviceId();
   if (!trimmed) return { ok: false, error: 'missing_key' };
-  if (!deviceId) return { ok: false, error: 'network' };
+  // ストレージが使えない（プライベートモード等）のは回線ではなく端末側の話
+  if (!deviceId) return { ok: false, error: 'storage' };
   try {
     const { status, data, demo } = await post<ActivateResponse>('/api/license/activate', {
       key: trimmed,
