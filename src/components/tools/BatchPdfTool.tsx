@@ -118,8 +118,10 @@ export function BatchPdfTool({ dict, mode }: BatchPdfToolProps) {
   }
 
   const needsPassword = mode === 'protect' || changeMode;
+  const passwordStartsWithDash = needsPassword && password.startsWith('-');
   const passwordOk =
-    !needsPassword || (password.length >= 6 && password === confirm);
+    !needsPassword ||
+    (password.length >= 6 && password === confirm && !password.startsWith('-'));
   const passwordMismatch = needsPassword && confirm.length > 0 && password !== confirm;
   const passwordTooShort = needsPassword && password.length > 0 && password.length < 6;
 
@@ -372,6 +374,9 @@ export function BatchPdfTool({ dict, mode }: BatchPdfToolProps) {
                 </div>
                 {passwordTooShort ? (
                   <p className="w-full text-xs text-amber-700">{protectCopy.passwordTooShort}</p>
+                ) : null}
+                {passwordStartsWithDash ? (
+                  <p className="w-full text-xs text-red-600">{protectCopy.passwordStartsWithDash}</p>
                 ) : null}
                 {passwordMismatch ? (
                   <p className="w-full text-xs text-red-600">{protectCopy.passwordMismatch}</p>

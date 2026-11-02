@@ -75,6 +75,12 @@ export function ProtectPdfTool({ dict }: ProtectPdfToolProps) {
       setError(copy.passwordTooShort);
       return;
     }
+    // qpdf receives the password as a positional argv entry — a leading '-'
+    // would be parsed as an option, so reject it before touching the engine.
+    if (password.startsWith('-')) {
+      setError(copy.passwordStartsWithDash);
+      return;
+    }
     if (password !== confirm) {
       setError(copy.passwordMismatch);
       return;

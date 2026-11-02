@@ -1697,6 +1697,8 @@ export const ja = {
       confirmLabel: 'パスワード確認',
       passwordTooShort: 'パスワードは最低6文字必要です。',
       passwordMismatch: 'パスワードが一致しません。',
+      passwordStartsWithDash:
+        'パスワードはハイフン（-）で始められません。先頭に別の文字を入れてください。',
       permissionsHeading: '受け取り側の権限',
       printingLabel: '印刷',
       printFull: '許可',
