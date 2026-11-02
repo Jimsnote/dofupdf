@@ -62,7 +62,9 @@ function renderInline(text: string): ReactNode {
  * FAQPage JSON-LD built from the same data as the visible content.
  */
 export function GuidePage({ guide }: GuidePageProps) {
-  const tool = guide.toolSlug ? tools.find((t) => t.slug === guide.toolSlug) : undefined;
+  const tool = guide.toolSlug
+    ? tools.find((t) => t.slug === guide.toolSlug && t.status === 'live')
+    : undefined;
   const toolName = tool ? getDictionary('ja').tools[tool.i18nKey].name : null;
   const url = `${SITE_URL}/guides/${guide.slug}/`;
 
@@ -318,7 +320,7 @@ export function GuidePage({ guide }: GuidePageProps) {
           <div className="mt-6 grid gap-5 sm:grid-cols-2">
             {relatedGuides.map((related) => {
               const relatedTool = related.toolSlug
-                ? tools.find((t) => t.slug === related.toolSlug)
+                ? tools.find((t) => t.slug === related.toolSlug && t.status === 'live')
                 : undefined;
               return (
                 <div

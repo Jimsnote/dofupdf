@@ -8,6 +8,7 @@ import { isLocale } from '@/i18n/config';
 import type { Dictionary } from '@/i18n/locales/ja';
 import { TOOL_CHAINS } from '@/lib/tool-chains';
 import { saveHandoff } from '@/lib/tool-handoff';
+import { tools } from '@/lib/tools';
 
 interface ChainNextProps {
   dict: Dictionary;
@@ -28,7 +29,11 @@ export function ChainNext({ dict, slug, blob, fileName }: ChainNextProps) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [handoffFailed, setHandoffFailed] = useState(false);
-  const chain = (TOOL_CHAINS[slug] ?? []).filter((target) => dict.tools[target]);
+  // 辞書にキーがあるだけでは不十分——offline（410 下線）ツールを推さない
+  const chain = (TOOL_CHAINS[slug] ?? []).filter(
+    (target) =>
+      dict.tools[target] && tools.find((t) => t.slug === target)?.status === 'live',
+  );
   if (chain.length === 0) return null;
 
   function hrefFor(target: keyof Dictionary['tools']): string {
