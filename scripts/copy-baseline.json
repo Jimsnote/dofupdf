@@ -172,6 +172,7 @@
  "src/i18n/locales/ja.ts::ja.pricing.licenseInvalid": "ライセンスキーが無効です。購入時のメールに記載されたキーをご確認ください。",
  "src/i18n/locales/ja.ts::ja.pricing.licenseNetworkError": "確認できませんでした。接続を確認してもう一度お試しください。",
  "src/i18n/locales/ja.ts::ja.pricing.licensePlaceholder": "XXXX-XXXX-XXXX-XXXX",
+ "src/i18n/locales/ja.ts::ja.pricing.licenseUnavailable": "ライセンスサーバーが準備中です。しばらくしてからもう一度お試しください。",
  "src/i18n/locales/ja.ts::ja.pricing.metaDescription": "PDFの一括保護・一括解除・パスワード一括変更・名前一括・処理ログCSV。個別の作業はいつでも無料。Proは買い切り、3台まで。ファイルは今もこれからもアップロードされません。",
  "src/i18n/locales/ja.ts::ja.pricing.metaTitle": "DofuPDF Pro｜まとめて処理・買い切り ¥4,980 | DofuPDF",
  "src/i18n/locales/ja.ts::ja.pricing.proHeading": "Pro — ¥4,980 買い切り",
