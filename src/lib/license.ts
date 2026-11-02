@@ -125,6 +125,11 @@ export async function activateLicense(key: string): Promise<ApiResult> {
     });
     if (status !== 200 || !data?.ok) {
       const error = data?.error ?? 'invalid_key';
+      // license_unavailable（サーバー側で DEMO/本番いずれの設定も無い 503）は
+      // ユーザーのキーや回線ではなくサービス側の状態 —— 専用文案へ。
+      if (error === 'license_unavailable') {
+        return { ok: false, error: 'license_unavailable' };
+      }
       // 通信系の失敗（レート制限・上流障害・5xx）は「確認できませんでした」系に寄せる
       const transient = status === 429 || status >= 500 || error === 'upstream_unavailable';
       return { ok: false, error: transient ? 'network' : error, message: data?.message };

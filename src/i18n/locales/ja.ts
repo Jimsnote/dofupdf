@@ -606,6 +606,7 @@ export const ja = {
     licenseInactive: 'Proは未有効化です',
     licenseInvalid: 'ライセンスキーが無効です。購入時のメールに記載されたキーをご確認ください。',
     licenseNetworkError: '確認できませんでした。接続を確認してもう一度お試しください。',
+    licenseUnavailable: 'ライセンスサーバーが準備中です。しばらくしてからもう一度お試しください。',
     faqHeading: 'よくある質問',
     faqs: [
       {

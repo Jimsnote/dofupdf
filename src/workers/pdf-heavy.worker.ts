@@ -178,38 +178,21 @@ async function engineBlobUrl(engine: keyof WasmManifest): Promise<string> {
 }
 
 /**
- * Loads the wasm manifest, preferring Cache Storage over the network just
- * like the binaries. The manifest is tiny and versioned file names keep its
- * answers valid, so caching it across sessions is safe. Falls back to a
- * plain fetch when Cache Storage is unavailable.
+ * Loads the wasm manifest straight from the network (batch B): the file is
+ * a few dozen bytes, so caching it bought nothing — and Cache Storage has no
+ * TTL, so a stale manifest (engine upgraded, old wasm files no longer
+ * deployed) resolved to a 404 forever with engine-load and never self-healed.
+ * The wasm binaries keep their magic-word-validated Cache Storage path
+ * (fetchWasm); a manifest entry left in an old cache by the pre-batch-B code
+ * is inert now and is simply never read again. Per-worker-instance
+ * memoization (getManifest) still avoids repeat fetches within one task.
  */
 async function fetchManifest(): Promise<WasmManifest> {
-  let cache: Cache | null = null;
-  try {
-    cache = await caches.open(WASM_CACHE);
-    const hit = await cache.match(WASM_MANIFEST_URL);
-    if (hit) return (await hit.json()) as WasmManifest;
-  } catch {
-    cache = null;
-  }
   const response = await fetch(WASM_MANIFEST_URL);
   if (!response.ok) {
     throw new Error(`Failed to fetch ${WASM_MANIFEST_URL}: HTTP ${response.status}`);
   }
-  const manifest = (await response.json()) as WasmManifest;
-  if (cache) {
-    try {
-      await cache.put(
-        WASM_MANIFEST_URL,
-        new Response(JSON.stringify(manifest), {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
-    } catch {
-      // A failed cache write (e.g. quota) is not fatal.
-    }
-  }
-  return manifest;
+  return (await response.json()) as WasmManifest;
 }
 
 /** Memoized manifest lookup — one worker instance handles one task. */

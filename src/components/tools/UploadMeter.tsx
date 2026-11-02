@@ -51,8 +51,23 @@ function isAnalyticsUrl(url: string): boolean {
   }
 }
 
+/**
+ * License API リクエスト（/api/license/*）は「ファイルデータ」ではない：
+ * 送られるのはライセンスキーと匿名端末ID の数十バイトの JSON だけで、
+ * Pro 有効化のたびにこの計器が 0 B 以外を示すと「零アップロード」の
+ * 信頼装置としての意味を失うため、集計から除外する。
+ */
+function isLicenseApiUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url, window.location.href);
+    return parsed.origin === window.location.origin && parsed.pathname.startsWith('/api/license/');
+  } catch {
+    return false;
+  }
+}
+
 function report(url: string, body: unknown) {
-  if (isAnalyticsUrl(url)) return;
+  if (isAnalyticsUrl(url) || isLicenseApiUrl(url)) return;
   const size = bodySize(body);
   if (size <= 0) return;
   totalBytes += size;

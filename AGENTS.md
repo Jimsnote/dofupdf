@@ -85,9 +85,14 @@ src/
 - **git**：main 分支，英文 commit message；用户已授权本地 commit；**push 前必须经用户确认**（GitHub Desktop 由用户操作）
 - **许可**：AGPL-3.0；新增第三方依赖时核对许可证（优先 MIT/Apache；GPL 系引入即传染）
 
-## 6. 环境变量（均构建期内联，无敏感信息）
+## 6. 环境变量（构建期内联均为非敏感；Worker 侧变量见下）
 
 `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_GITHUB_URL`（默认 https://github.com/Jimsnote/dofupdf，新仓库待建）/ `NEXT_PUBLIC_CF_ANALYTICS_TOKEN`（Cloudflare 控制台自动注入已开，此变量未用）/ `NEXT_PUBLIC_ADSENSE_CLIENT`（未启用，AdSense 审核通过后配置）
+
+**Worker 侧（`src/worker/index.js`，配 Cloudflare Dashboard 或本地 `.dev.vars`）**：
+
+- `PAYHIP_PRODUCT_SECRET`：Pro 许可验证的 Payhip 产品密钥（生产必配；未配时 license API 不工作）
+- `ALLOW_DEMO`：DEMO 模式显式开关（批次 B 起 fail-closed）。仅在本地开发跑 DEMO E2E 时于 `.dev.vars` 配 `ALLOW_DEMO=true`（配合 `npx wrangler dev`）；**生产绝不配置**。生产模式下（secret 在场）该开关无效果。无 secret 且无 ALLOW_DEMO 时，`/api/license/*` 三端点一律返回 503 `license_unavailable`
 
 > 2026-08：Microsoft Clarity 已移除（代码、CSP、隐私文案同步清理），站点只保留 CF 无 Cookie 汇总统计，走"零行为追踪"叙事。
 
