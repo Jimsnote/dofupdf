@@ -144,8 +144,14 @@ console.log('\n2. headers');
 // ---------- 3. path handling ----------
 console.log('\n3. paths');
 {
-  const noSlash = await req('/merge-pdf', { method: 'HEAD' });
-  check(noSlash.status === 307 && noSlash.headers.location === '/merge-pdf/', 'extensionless folder path gets a trailing slash', `${noSlash.status} -> ${noSlash.headers.location}`);
+  // W1: /merge-pdf などは 410 で応答する（trailing-slash リダイレクトより前）。
+  // 生きているパスで 307 を、引退済みパスで 410 を、それぞれ回帰として見る。
+  const noSlash = await req('/protect-pdf', { method: 'HEAD' });
+  check(noSlash.status === 307 && noSlash.headers.location === '/protect-pdf/', 'extensionless folder path gets a trailing slash', `${noSlash.status} -> ${noSlash.headers.location}`);
+  for (const retired of ['/merge-pdf', '/compress-pdf/', '/guides/how-to-merge-pdf/']) {
+    const r = await req(retired, { method: 'HEAD' });
+    check(r.status === 410, `retired path ${retired} answers 410 Gone`, `${r.status}`);
+  }
   const notFound = await req('/this-page-does-not-exist/');
   check(notFound.status === 404 && notFound.body.length > 2000, 'unknown path returns a real 404 document', `status=${notFound.status} bytes=${notFound.body.length}`);
   for (const [from, to] of [['/de/merge-pdf/', '/merge-pdf/'], ['/ja/', '/'], ['/zh/merge-pdf/', '/merge-pdf/']]) {
@@ -229,7 +235,7 @@ console.log('\n6. sitemap + robots');
 // ---------- 7. canonical + og on a sample ----------
 console.log('\n7. canonicals');
 {
-  const sample = ['/', '/receipt-sheet/', '/compress-pdf/', '/guides/', '/compare/'];
+  const sample = ['/', '/protect-pdf/', '/unlock-pdf/', '/guides/', '/compare/', '/pricing/'];
   for (const path of sample) {
     const r = await req(path);
     const canon = (r.body.match(/rel="canonical" href="([^"]+)"/) ?? [])[1] ?? '';
