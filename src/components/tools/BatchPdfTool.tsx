@@ -149,10 +149,13 @@ export function BatchPdfTool({ dict, mode }: BatchPdfToolProps) {
     let aborted = false;
     try {
       for (let i = 0; i < rows.length; i += 1) {
-        if (controller.signal.aborted) break;
+        // ファイル間の隙間にabortが来た場合も「中断」扱いにする（aborted フラグを立てて抜ける）
+        if (controller.signal.aborted) {
+          aborted = true;
+          break;
+        }
         const row = rows[i];
         patch(row.id, { status: 'working', error: undefined });
-        const processedAt = new Date().toISOString();
         try {
           const bytes = new Uint8Array(await row.file.arrayBuffer());
           let output: Uint8Array;

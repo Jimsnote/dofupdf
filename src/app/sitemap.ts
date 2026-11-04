@@ -16,17 +16,18 @@ const staticPaths = ['', '/about', '/privacy', '/terms', '/faq', '/tools', '/pdf
  * dateModified/datePublished が正（この表より優先）。
  */
 const CONTENT_DATES: Record<string, string> = {
-  '': '2026-10-28',
+  // 2026-11-02：批次 A（首页支柱句/隐私§3/工具页 privacyText）与批次 B（pricing 新 key）实改
+  '': '2026-11-02',
   '/about': '2026-10-28',
-  '/privacy': '2026-10-28',
-  '/terms': '2026-10-28',
+  '/privacy': '2026-11-02',
+  '/terms': '2026-11-02',
   '/faq': '2026-10-28',
   '/tools': '2026-10-28',
   '/pdf-password': '2026-10-28',
-  '/pricing': '2026-10-28',
+  '/pricing': '2026-11-02',
   '/tokushoho': '2026-11-02',
-  '/protect-pdf': '2026-10-28',
-  '/unlock-pdf': '2026-10-28',
+  '/protect-pdf': '2026-11-02',
+  '/unlock-pdf': '2026-11-02',
   '/guides': '2026-11-01',
   '/compare': '2026-10-28',
   '/compare/dofupdf-vs-ilovepdf': '2026-10-28',
