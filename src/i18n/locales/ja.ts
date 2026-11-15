@@ -28,6 +28,7 @@ export const ja = {
     license: 'Pro（¥4,980）',
     tokushoho: '特定商取引法に基づく表記',
     github: 'GitHub',
+    contact: 'お問い合わせ: support@dofupdf.com',
     copyright: '© {year} DofuPDF. All rights reserved.',
   },
   common: {
