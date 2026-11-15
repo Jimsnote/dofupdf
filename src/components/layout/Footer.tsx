@@ -49,6 +49,12 @@ export function Footer({ locale, dict }: FooterProps) {
             <Github className="h-4 w-4" aria-hidden />
             {dict.footer.github}
           </a>
+          <a
+            href="mailto:support@dofupdf.com"
+            className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-brand-700"
+          >
+            {dict.footer.contact}
+          </a>
         </nav>
 
         <p className="mt-8 text-center text-xs text-slate-500">
