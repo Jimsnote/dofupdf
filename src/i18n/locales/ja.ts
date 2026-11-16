@@ -600,7 +600,7 @@ export const ja = {
     salesSuspendedTitle: '現在、新規ライセンスの販売を一時停止しています',
     salesSuspendedBody: '決済システムの変更に伴うメンテナンスです。',
     salesSuspendedExisting:
-      '既にライセンスをお持ちのお客様は、これまでどおりライセンスの登録・解除およびPro機能をご利用いただけます。お問い合わせ：support@dofupdf.com',
+      '既存のお客様向けに、ライセンスの登録・解除画面は残しています。確認がうまくいかない場合は、support@dofupdf.comまでご連絡ください。',
     licenseHeading: 'ライセンスキーの登録',
     licenseHint: '既にお持ちのライセンスキーを入力すると、この端末でPro機能が有効になります。',
     licensePlaceholder: 'XXXX-XXXX-XXXX-XXXX',

@@ -184,7 +184,7 @@
  "src/i18n/locales/ja.ts::ja.pricing.proItems[4]": "3台の端末で利用",
  "src/i18n/locales/ja.ts::ja.pricing.proItems[5]": "買い切り：継続料金なし",
  "src/i18n/locales/ja.ts::ja.pricing.salesSuspendedBody": "決済システムの変更に伴うメンテナンスです。",
- "src/i18n/locales/ja.ts::ja.pricing.salesSuspendedExisting": "既にライセンスをお持ちのお客様は、これまでどおりライセンスの登録・解除およびPro機能をご利用いただけます。お問い合わせ：support@dofupdf.com",
+ "src/i18n/locales/ja.ts::ja.pricing.salesSuspendedExisting": "既存のお客様向けに、ライセンスの登録・解除画面は残しています。確認がうまくいかない場合は、support@dofupdf.comまでご連絡ください。",
  "src/i18n/locales/ja.ts::ja.pricing.salesSuspendedTitle": "現在、新規ライセンスの販売を一時停止しています",
  "src/i18n/locales/ja.ts::ja.privacy.heading": "プライバシーポリシー",
  "src/i18n/locales/ja.ts::ja.privacy.lastUpdated": "最終改訂日：2026年11月",
