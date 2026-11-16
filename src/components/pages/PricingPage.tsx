@@ -10,13 +10,12 @@ interface PricingPageProps {
   dict: Dictionary;
 }
 
-/** Payhip hosted checkout — opens in a new tab (W2.5 migration). */
-const CHECKOUT_URL = 'https://payhip.com/b/8fZxV';
-
 /**
- * /pricing/ — DofuPDF Pro（買い切り ¥4,980）。Copy is verbatim from the W2/W3
- * brief (dict.pricing). JSON-LD: SoftwareApplication with a 4980 JPY offer —
- * never aggregateRating/review (no real data).
+ * /pricing/ — DofuPDF Pro（買い切り ¥4,980）。New sales are temporarily
+ * suspended while the checkout provider changes. Existing customers retain
+ * the LicenseCard below; the worker and stored activations stay untouched.
+ * JSON-LD: SoftwareApplication with a 4980 JPY offer marked SoldOut while
+ * checkout is unavailable — never aggregateRating/review (no real data).
  */
 export function PricingPage({ dict }: PricingPageProps) {
   const copy = dict.pricing;
@@ -32,6 +31,7 @@ export function PricingPage({ dict }: PricingPageProps) {
       '@type': 'Offer',
       price: '4980',
       priceCurrency: 'JPY',
+      availability: 'https://schema.org/SoldOut',
     },
     description: copy.metaDescription,
   };
@@ -74,14 +74,14 @@ export function PricingPage({ dict }: PricingPageProps) {
               </li>
             ))}
           </ul>
-          <a
-            href={CHECKOUT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-brand-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-700"
+          <div
+            role="status"
+            className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950"
           >
-            {copy.buyLabel}
-          </a>
+            <p className="font-bold">{copy.salesSuspendedTitle}</p>
+            <p className="mt-2">{copy.salesSuspendedBody}</p>
+            <p className="mt-2">{copy.salesSuspendedExisting}</p>
+          </div>
         </section>
       </div>
 

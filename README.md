@@ -24,7 +24,7 @@ The live site is focused on PDF password protection:
 
 ### DofuPDF Pro
 
-Batch mode is a one-time purchase (**¥4,980**, no subscription, sold via [Payhip](https://payhip.com/b/8fZxV)):
+Batch mode is a one-time Pro license (**¥4,980**, no subscription). New sales are temporarily suspended while the checkout provider changes; existing license activation and deactivation remain available:
 
 - Up to 50 files per batch (free tier: up to 3)
 - Batch protect, batch unlock, batch password change

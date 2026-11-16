@@ -20,6 +20,12 @@ export function TokushohoPage({ dict }: TokushohoPageProps) {
         ]}
       />
       <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">{copy.heading}</h1>
+      <p
+        role="status"
+        className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950"
+      >
+        {copy.salesSuspendedNotice}
+      </p>
 
       <div className="mt-10 overflow-x-auto rounded-xl border border-slate-200">
         <table className="w-full border-collapse text-sm">
