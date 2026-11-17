@@ -1,5 +1,5 @@
 /**
- * Pro license client state (W2.5, Payhip). The browser only ever sends the
+ * Pro license client state (Dodo Payments). The browser only ever sends the
  * license key and an anonymous device id to our own worker routes
  * (/api/license/*) — PDFs and passwords never leave the device. The record
  * lives in localStorage; validation results are cached for 7 days, and a
@@ -9,7 +9,7 @@
 export interface StoredLicense {
   key: string;
   cached_at: number;
-  /** Worker answered in DEMO mode (no Payhip env configured). */
+  /** Worker answered in explicitly enabled local DEMO mode. */
   demo: boolean;
 }
 

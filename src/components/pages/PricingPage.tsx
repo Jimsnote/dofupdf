@@ -1,21 +1,23 @@
 import Link from 'next/link';
-import { Check, ChevronDown } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown } from 'lucide-react';
 import type { Dictionary } from '@/i18n/locales/ja';
 import { SITE_NAME, SITE_URL } from '@/lib/site';
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { LicenseCard } from './LicenseCard';
 
+const DODO_CHECKOUT_URL =
+  'https://checkout.dodopayments.com/buy/pdt_0Ns9DCqpzbuvkd7JKpHXX?quantity=1&redirect_url=https%3A%2F%2Fdofupdf.com%2Fpricing%2F';
+
 interface PricingPageProps {
   dict: Dictionary;
 }
 
 /**
- * /pricing/ — DofuPDF Pro（買い切り ¥4,980）。New sales are temporarily
- * suspended while the checkout provider changes. Existing customers retain
- * the LicenseCard below; the worker and stored activations stay untouched.
- * JSON-LD: SoftwareApplication with a 4980 JPY offer marked SoldOut while
- * checkout is unavailable — never aggregateRating/review (no real data).
+ * /pricing/ — DofuPDF Pro（買い切り ¥4,980・税込）。Checkout is hosted by
+ * Dodo Payments; customers return here to activate the emailed license key.
+ * JSON-LD: SoftwareApplication with a 4980 JPY offer — never
+ * aggregateRating/review (no real data).
  */
 export function PricingPage({ dict }: PricingPageProps) {
   const copy = dict.pricing;
@@ -31,7 +33,8 @@ export function PricingPage({ dict }: PricingPageProps) {
       '@type': 'Offer',
       price: '4980',
       priceCurrency: 'JPY',
-      availability: 'https://schema.org/SoldOut',
+      availability: 'https://schema.org/InStock',
+      url: DODO_CHECKOUT_URL,
     },
     description: copy.metaDescription,
   };
@@ -74,14 +77,16 @@ export function PricingPage({ dict }: PricingPageProps) {
               </li>
             ))}
           </ul>
-          <div
-            role="status"
-            className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950"
+          <a
+            href={DODO_CHECKOUT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-brand-700"
           >
-            <p className="font-bold">{copy.salesSuspendedTitle}</p>
-            <p className="mt-2">{copy.salesSuspendedBody}</p>
-            <p className="mt-2">{copy.salesSuspendedExisting}</p>
-          </div>
+            {copy.buyButton}
+            <ArrowUpRight className="h-4 w-4" aria-hidden />
+          </a>
+          <p className="mt-3 text-xs leading-relaxed text-slate-600">{copy.purchaseNote}</p>
         </section>
       </div>
 

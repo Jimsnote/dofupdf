@@ -83,35 +83,26 @@ const BODY = `<!doctype html>
 `;
 
 /**
- * License endpoints (W2.5, Payhip): the browser never holds the Payhip
- * product secret — it only talks to these routes, and the worker calls the
- * Payhip License API (base https://payhip.com/api/v2, auth header
- * `product-secret-key`). Payhip has no hard activation cap, so the 3-device
- * quota is enforced HERE with Workers KV (`LICENSE_KV`) as the authoritative
- * record. KV scheme (batch B, hashed): key = `act:{sha256(key + ':' + deviceId)}`,
- * value = sha256(key), metadata.key = sha256(key) — the plaintext license key
- * is never stored, so a leaked KV dump cannot enumerate keys. Entries written
- * before batch B hold the plaintext key in value+metadata; every read path
- * accepts both forms and lazily rewrites legacy entries into the hashed
- * format, so no KV wipe is needed.
+ * License endpoints (Dodo Payments): the browser talks only to these same-origin
+ * routes. The worker calls Dodo's public activate/validate/deactivate endpoints;
+ * no API key or other secret is required or stored in the browser. Dodo enforces
+ * the product's three-activation limit, while LICENSE_KV maps our anonymous
+ * device IDs to Dodo activation instance IDs and enforces the same limit locally.
  *
- * DEMO mode is fail-closed (batch B): without PAYHIP_PRODUCT_SECRET the
- * license API answers 503 `license_unavailable` unless ALLOW_DEMO is
- * explicitly enabled (local development via `.dev.vars`; never in
- * production). With ALLOW_DEMO the key DEMO-PRO-0000-0000 behaves like a
- * real Pro key (same KV-based quota), and responses carry
- * `X-License-Mode: demo` so the UI can show a DEMO badge.
+ * KV scheme: key = act:{sha256(key + ':' + deviceId)}, value = JSON containing
+ * only sha256(key), the Dodo instance ID and product ID; metadata.key = sha256(key).
+ * Plaintext license keys are never stored. Legacy value formats remain readable
+ * for local DEMO data, but cannot activate the Dodo production path.
  *
- * Privacy: only the license key and the anonymous device id travel. PDFs and
- * passwords never do.
+ * DEMO mode is opt-in via ALLOW_DEMO=true in local .dev.vars. Production needs
+ * no secret environment variable. PDFs and passwords never leave the device.
  */
 const DEMO_KEY = 'DEMO-PRO-0000-0000';
-const PAYHIP_API = 'https://payhip.com/api/v2';
-// Known limitation (accepted): KV is eventually consistent and
-// count-then-write is not atomic, so two devices activating the same key in
-// the same instant can both pass the DEVICE_LIMIT check (TOCTOU). Beating the
-// limit requires the key holder to race their own key, so the real-world
-// threat is low; a Durable Object would be the fix if it ever matters.
+const DODO_API = 'https://live.dodopayments.com';
+const DODO_PRODUCT_ID = 'pdt_0Ns9DCqpzbuvkd7JKpHXX';
+const DODO_TIMEOUT_MS = 10_000;
+// KV count-then-write is not atomic (accepted limitation). Dodo's own activation
+// limit is authoritative and closes the same-key race at the upstream service.
 const DEVICE_LIMIT = 3;
 
 /** Naive per-IP rate limit: 10 requests/minute (in-memory, per isolate). */
@@ -142,15 +133,7 @@ function json(data, { status = 200, demo = false } = {}) {
   return new Response(JSON.stringify(data), { status, headers });
 }
 
-function licenseEnvReady(env) {
-  return Boolean(env.PAYHIP_PRODUCT_SECRET);
-}
-
-/**
- * ALLOW_DEMO gate (batch B): DEMO mode is opt-in for local development
- * (`.dev.vars` / wrangler dev). Never set it in production — with the real
- * secret configured it has no effect either way.
- */
+/** DEMO is only for local development via ALLOW_DEMO=true in .dev.vars. */
 function demoAllowed(env) {
   return env.ALLOW_DEMO === 'true' || env.ALLOW_DEMO === true;
 }
@@ -160,70 +143,54 @@ async function sha256Hex(input) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** sha256(licenseKey) hex — the only form of the key that is ever stored. */
 async function keyDigest(licenseKey) {
   return sha256Hex(licenseKey);
 }
 
-/** KV key for one (license key, device) activation pair. */
 async function activationKey(licenseKey, deviceId) {
   return `act:${await sha256Hex(`${licenseKey}:${deviceId}`)}`;
 }
 
-/**
- * Payhip license verify. Returns {enabled} for a well-formed answer and
- * {enabled:false} when the key does not exist: Payhip answers HTTP 400 with
- * body {"data":[],"error":true} for unknown license keys (verified live
- * 2026-10-30), and 404 is kept as a defensive alias. Any other failure —
- * 401 (product secret invalid: an operator alert, deliberately NOT mapped
- * to "invalid key"), 5xx, network error, timeout, unparsable body — returns
- * null so the caller decides how to degrade. 10s timeout: a hanging Payhip
- * must not hang the API.
- */
-const PAYHIP_TIMEOUT_MS = 10_000;
-
-async function payhipVerify(env, licenseKey) {
+/** Timeout and malformed upstream answers become null, never "invalid key". */
+async function dodoRequest(path, body) {
   let res;
   try {
-    res = await fetch(`${PAYHIP_API}/license/verify?license_key=${encodeURIComponent(licenseKey)}`, {
-      headers: { 'product-secret-key': env.PAYHIP_PRODUCT_SECRET },
-      signal: AbortSignal.timeout(PAYHIP_TIMEOUT_MS),
+    res = await fetch(`${DODO_API}${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(DODO_TIMEOUT_MS),
     });
   } catch {
     return null;
   }
-  if (res.status === 400 || res.status === 404) return { enabled: false };
-  if (!res.ok) return null;
   const data = await res.json().catch(() => null);
-  return { enabled: Boolean(data?.data?.enabled) };
+  return { status: res.status, ok: res.ok, data };
 }
 
-/** Payhip usage counter: PUT /license/usage (+1) or /license/decrease (-1). */
-async function payhipUsage(env, licenseKey, path) {
-  try {
-    const res = await fetch(`${PAYHIP_API}/license/${path}`, {
-      method: 'PUT',
-      headers: {
-        'product-secret-key': env.PAYHIP_PRODUCT_SECRET,
-        'content-type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({ license_key: licenseKey }).toString(),
-      signal: AbortSignal.timeout(PAYHIP_TIMEOUT_MS),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
+async function dodoValidate(licenseKey, instanceId) {
+  return dodoRequest('/licenses/validate', {
+    license_key: licenseKey,
+    ...(instanceId ? { license_key_instance_id: instanceId } : {}),
+  });
 }
 
-/**
- * Count activated devices for one license key. The KV key hashes key and
- * device together, so a single key's devices cannot share a list prefix —
- * the key digest is therefore mirrored into the entry metadata and counted
- * by filtering the global `act:` prefix (KV list returns metadata with no
- * extra reads). Legacy pre-batch-B entries carry the plaintext key in
- * metadata and still count (they migrate on the next findActivation touch).
- */
+async function dodoActivate(licenseKey) {
+  // Do not send our anonymous device ID to Dodo; the instance name is generic.
+  return dodoRequest('/licenses/activate', {
+    license_key: licenseKey,
+    name: 'DofuPDF Web',
+  });
+}
+
+async function dodoDeactivate(licenseKey, instanceId) {
+  return dodoRequest('/licenses/deactivate', {
+    license_key: licenseKey,
+    license_key_instance_id: instanceId,
+  });
+}
+
+/** Count this key's device records without storing or listing plaintext keys. */
 async function countDevices(kv, licenseKey) {
   const digest = await keyDigest(licenseKey);
   let cursor;
@@ -239,35 +206,45 @@ async function countDevices(kv, licenseKey) {
   return count;
 }
 
-/**
- * Whether this (license key, device) pair is activated. A legacy entry that
- * still stores the plaintext key is treated as a match and rewritten into
- * the hashed format in the same breath (lazy migration, no KV wipe).
- */
+/** Return the activation record, lazily converting legacy values to JSON. */
 async function findActivation(kv, licenseKey, deviceId) {
   const kvKey = await activationKey(licenseKey, deviceId);
   const stored = await kv.get(kvKey);
-  if (stored === null) return false;
+  if (stored === null) return null;
   const digest = await keyDigest(licenseKey);
-  if (stored !== digest) {
-    await kv.put(kvKey, digest, { metadata: { key: digest } });
+  try {
+    const parsed = JSON.parse(stored);
+    if (parsed && parsed.key === digest) {
+      return {
+        instanceId: typeof parsed.instanceId === 'string' ? parsed.instanceId : null,
+        productId: typeof parsed.productId === 'string' ? parsed.productId : null,
+      };
+    }
+  } catch {
+    // Pre-Dodo and early DEMO values contained only the key digest/plaintext.
   }
-  return true;
+  if (stored === digest || stored === licenseKey) {
+    const record = { key: digest, instanceId: null, productId: null };
+    await kv.put(kvKey, JSON.stringify(record), { metadata: { key: digest } });
+    return { instanceId: null, productId: null };
+  }
+  return null;
 }
 
-async function writeActivation(kv, licenseKey, deviceId) {
+async function writeActivation(kv, licenseKey, deviceId, instanceId, productId) {
   const digest = await keyDigest(licenseKey);
-  await kv.put(await activationKey(licenseKey, deviceId), digest, {
-    metadata: { key: digest },
-  });
+  await kv.put(await activationKey(licenseKey, deviceId), JSON.stringify({
+    key: digest,
+    instanceId,
+    productId,
+  }), { metadata: { key: digest } });
 }
 
-/** Deletes the record; returns true when one existed (caller decreases usage). */
 async function deleteActivation(kv, licenseKey, deviceId) {
   const kvKey = await activationKey(licenseKey, deviceId);
-  const existed = (await kv.get(kvKey)) !== null;
-  if (existed) await kv.delete(kvKey);
-  return existed;
+  const record = await findActivation(kv, licenseKey, deviceId);
+  if (record) await kv.delete(kvKey);
+  return record;
 }
 
 function invalidKey(demo) {
@@ -282,6 +259,10 @@ function deviceLimitReached(demo) {
     { ok: false, error: 'device_limit', message: 'ライセンスは3台までです' },
     { status: 403, demo },
   );
+}
+
+function upstreamUnavailable() {
+  return json({ ok: false, error: 'upstream_unavailable' }, { status: 502 });
 }
 
 async function handleLicense(request, env, action) {
@@ -300,17 +281,10 @@ async function handleLicense(request, env, action) {
   if (!key) return json({ error: 'missing_key' }, { status: 400 });
   if (!deviceId || deviceId.length > 128) return json({ error: 'missing_device' }, { status: 400 });
 
-  const demo = !licenseEnvReady(env);
-  if (demo && !demoAllowed(env)) {
-    // Fail-closed（批次 B）：无 secret 且未显式开启 ALLOW_DEMO 时，绝不落入
-    // 公开 DEMO key —— license API 直接不可用（本地开发请在 .dev.vars 配
-    // ALLOW_DEMO=true；生产只配 PAYHIP_PRODUCT_SECRET）。
-    return json({ ok: false, error: 'license_unavailable' }, { status: 503 });
-  }
+  const demo = demoAllowed(env);
   const kv = env.LICENSE_KV ?? null;
 
   if (demo) {
-    // DEMO モード：固定キーのみ受理。3台制限も同じ KV 経路で再現し、本番と同一挙動にする。
     if (key !== DEMO_KEY) {
       if (action === 'status') {
         return json({ valid: false, activatedOnThisDevice: false, devices: 0 }, { demo: true });
@@ -318,7 +292,6 @@ async function handleLicense(request, env, action) {
       return invalidKey(true);
     }
     if (!kv) {
-      // KV バインディング欠落（設定ミス）: 枠チェックを省略して旧 W2 挙動にフォールバック。
       if (action === 'activate') return json({ ok: true, remaining: DEVICE_LIMIT - 1 }, { demo: true });
       if (action === 'status') {
         return json({ valid: true, activatedOnThisDevice: false, devices: 0 }, { demo: true });
@@ -327,7 +300,6 @@ async function handleLicense(request, env, action) {
     }
     if (action === 'activate') {
       if (await findActivation(kv, key, deviceId)) {
-        // 同一端末の再 activate は枠を消費しない
         return json(
           { ok: true, remaining: Math.max(0, DEVICE_LIMIT - (await countDevices(kv, key))) },
           { demo: true },
@@ -335,68 +307,102 @@ async function handleLicense(request, env, action) {
       }
       const devices = await countDevices(kv, key);
       if (devices >= DEVICE_LIMIT) return deviceLimitReached(true);
-      await writeActivation(kv, key, deviceId);
+      await writeActivation(kv, key, deviceId, `demo:${deviceId}`, 'demo');
       return json({ ok: true, remaining: Math.max(0, DEVICE_LIMIT - devices - 1) }, { demo: true });
     }
     if (action === 'status') {
       return json(
         {
           valid: true,
-          activatedOnThisDevice: await findActivation(kv, key, deviceId),
+          activatedOnThisDevice: Boolean(await findActivation(kv, key, deviceId)),
           devices: await countDevices(kv, key),
         },
         { demo: true },
       );
     }
-    // deactivate
     await deleteActivation(kv, key, deviceId);
     return json({ ok: true }, { demo: true });
   }
 
-  // 本番モード：キーの有効性は Payhip、デバイス枠の権威記録は KV。
+  if (key === DEMO_KEY) return invalidKey(false);
+
   try {
     if (action === 'activate') {
-      // 仕様: 通信故障(null)は 502 upstream_unavailable（status パスと同一口径）、
-      // enabled:false のみ 403「無効」。Payhip 障害中に有効キーを「無効」と
-      // 報告しないための区別。
-      const verified = await payhipVerify(env, key);
-      if (!verified) return json({ ok: false, error: 'upstream_unavailable' }, { status: 502 });
-      if (!verified.enabled) return invalidKey(false);
       if (!kv) return json({ error: 'server_misconfig' }, { status: 500 });
-      if (await findActivation(kv, key, deviceId)) {
-        return json({
-          ok: true,
-          remaining: Math.max(0, DEVICE_LIMIT - (await countDevices(kv, key))),
-        });
+      const existing = await findActivation(kv, key, deviceId);
+      if (existing?.instanceId && existing.productId === DODO_PRODUCT_ID) {
+        const current = await dodoValidate(key, existing.instanceId);
+        if (!current) return upstreamUnavailable();
+        if (current.ok && current.data?.valid === true) {
+          return json({
+            ok: true,
+            remaining: Math.max(0, DEVICE_LIMIT - (await countDevices(kv, key))),
+          });
+        }
+        const invalid = current.status === 403 || current.status === 404
+          || current.status === 422 || current.data?.valid === false;
+        if (!invalid) return upstreamUnavailable();
+        await deleteActivation(kv, key, deviceId);
+        return invalidKey(false);
       }
+      if (existing) await deleteActivation(kv, key, deviceId);
+
       const devices = await countDevices(kv, key);
       if (devices >= DEVICE_LIMIT) return deviceLimitReached(false);
-      if (!(await payhipUsage(env, key, 'usage'))) {
-        // usage 呼び出しが失敗したら KV には書かず 500（次回リトライでやり直せる）。
-        return json({ ok: false, error: 'upstream_unavailable' }, { status: 500 });
+
+      const activated = await dodoActivate(key);
+      if (!activated) return upstreamUnavailable();
+      if (activated.status === 422) return deviceLimitReached(false);
+      if (activated.status === 403 || activated.status === 404) return invalidKey(false);
+      if (!activated.ok) return upstreamUnavailable();
+      const instanceId = activated.data?.id;
+      const productId = activated.data?.product?.product_id;
+      if (typeof instanceId !== 'string' || !instanceId) return upstreamUnavailable();
+      if (productId !== DODO_PRODUCT_ID) {
+        // Do not consume an activation on another merchant product's key.
+        await dodoDeactivate(key, instanceId);
+        return invalidKey(false);
       }
-      await writeActivation(kv, key, deviceId);
+      try {
+        await writeActivation(kv, key, deviceId, instanceId, productId);
+      } catch {
+        await dodoDeactivate(key, instanceId);
+        return upstreamUnavailable();
+      }
       return json({ ok: true, remaining: Math.max(0, DEVICE_LIMIT - devices - 1) });
     }
+
     if (action === 'status') {
-      const verified = await payhipVerify(env, key);
-      if (!verified) return json({ error: 'upstream_unavailable' }, { status: 502 });
-      if (!verified.enabled) {
+      if (!kv) return json({ error: 'server_misconfig' }, { status: 500 });
+      const activation = await findActivation(kv, key, deviceId);
+      const usableInstance = activation?.instanceId && activation.productId === DODO_PRODUCT_ID
+        ? activation.instanceId
+        : null;
+      const verified = await dodoValidate(key, usableInstance ?? undefined);
+      if (!verified) return upstreamUnavailable();
+      if (verified.status === 403 || verified.status === 404 || verified.data?.valid === false) {
         return json({ valid: false, activatedOnThisDevice: false, devices: 0 });
       }
-      if (!kv) return json({ error: 'server_misconfig' }, { status: 500 });
+      if (!verified.ok || verified.data?.valid !== true) return upstreamUnavailable();
       return json({
         valid: true,
-        activatedOnThisDevice: await findActivation(kv, key, deviceId),
+        activatedOnThisDevice: Boolean(usableInstance),
         devices: await countDevices(kv, key),
       });
     }
-    // deactivate: 記録が存在した端末の分だけ Payhip の使用数を -1。
-    const removed = kv ? await deleteActivation(kv, key, deviceId) : false;
-    if (removed) await payhipUsage(env, key, 'decrease');
+
+    if (!kv) return json({ error: 'server_misconfig' }, { status: 500 });
+    const activation = await findActivation(kv, key, deviceId);
+    if (!activation) return json({ ok: true });
+    if (activation.instanceId && activation.productId === DODO_PRODUCT_ID) {
+      const deactivated = await dodoDeactivate(key, activation.instanceId);
+      if (!deactivated) return upstreamUnavailable();
+      if (!deactivated.ok && deactivated.status !== 404) return upstreamUnavailable();
+    }
+    await deleteActivation(kv, key, deviceId);
     return json({ ok: true });
   } catch {
-    return json({ error: 'upstream_unavailable' }, { status: 502 });
+    return upstreamUnavailable();
   }
 }
 

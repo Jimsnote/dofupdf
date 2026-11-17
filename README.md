@@ -24,14 +24,14 @@ The live site is focused on PDF password protection:
 
 ### DofuPDF Pro
 
-Batch mode is a one-time Pro license (**¥4,980**, no subscription). New sales are temporarily suspended while the checkout provider changes. The existing license-management interface remains available, with a support route for customers affected by the legacy provider outage:
+Batch mode is a one-time Pro license (**¥4,980 including tax**, no subscription), sold through Dodo Payments. After checkout, Dodo emails a license key that the customer activates on the pricing page:
 
 - Up to 50 files per batch (free tier: up to 3)
 - Batch protect, batch unlock, batch password change
 - Batch output renaming + processing log CSV
 - License key valid on up to 3 devices
 
-Activation calls a minimal license-verification API — the only network calls the site makes. PDF files and passwords never touch the network.
+Activation calls the site's minimal Worker proxy to Dodo's public license endpoints. PDF files and passwords never touch the network.
 
 ### Retired tools
 
@@ -43,7 +43,7 @@ The site previously shipped 24 additional tools (merge, split, compress, OCR, ha
 - **Tailwind CSS 3.4** — no UI framework, system font stack
 - Hand-rolled lightweight i18n (no next-intl): **Japanese-only** — `ja` is both the single and the default locale, served at the root path with no prefix
 - PDF engine: `@jspawn/qpdf-wasm` inside Web Workers (AES-256); `@cantoo/pdf-lib`, `pdfjs-dist`, `tesseract.js` etc. remain in the tree for the retired tools
-- **Cloudflare Workers Static Assets** + a small site Worker (`src/worker/index.js`): answers 410 for retired URLs and proxies the license API (`/api/license/activate|validate|deactivate`) backed by a `LICENSE_KV` namespace
+- **Cloudflare Workers Static Assets** + a small site Worker (`src/worker/index.js`): answers 410 for retired URLs and proxies the license API (`/api/license/activate|status|deactivate`) backed by a `LICENSE_KV` namespace
 - No file-processing backend: PDFs are processed in the browser; the only server-side state is license activations
 
 ## Local development
@@ -58,14 +58,14 @@ npm run check:lang   # Japanese copy language gate (no foreign tokens leaking in
 npm run check:copy   # copy baseline guard (scripts/copy-baseline.json)
 ```
 
-Without `PAYHIP_PRODUCT_SECRET` configured, the license API runs in DEMO mode and accepts the key `DEMO-PRO-0000-0000` (response header `X-License-Mode: demo`).
+For local DEMO E2E, set `ALLOW_DEMO=true` in `.dev.vars` and run `npx wrangler dev`; the demo key is `DEMO-PRO-0000-0000` (response header `X-License-Mode: demo`). Never enable it in production.
 
 ## Deployment (Cloudflare Workers Static Assets)
 
 - **Config:** `wrangler.jsonc` (assets → `./out`, `main: src/worker/index.js`), deploy with `npx wrangler deploy` — or just push to `main`: GitHub integration (Cloudflare Workers Builds) auto-deploys
 - ⚠️ **Never delete `wrangler.jsonc`**: without it, Wrangler misdetects a full-stack Next.js app and injects the OpenNext adapter, which always fails for a static export
 - ⚠️ **Never delete the search-engine verification files** in `public/`: `BingSiteAuth.xml` (Bing Webmaster auth) and `58395c2f24c9698dc16736b1d5933a51.txt` (IndexNow key; deleting it makes IndexNow submissions 403)
-- Cloudflare Dashboard configuration: `PAYHIP_PRODUCT_SECRET` (secret, for license verification) and the `LICENSE_KV` namespace binding (standard)
+- Cloudflare Dashboard requires only the existing `LICENSE_KV` namespace binding (standard). Dodo's activation, validation and deactivation endpoints are public, so no API key or Worker secret is needed
 - Build-time environment variables (all optional, see `.env.example`):
   - `NEXT_PUBLIC_SITE_URL` — canonical URL used for metadata/sitemap (default `https://dofupdf.com`)
   - `NEXT_PUBLIC_GITHUB_URL` — GitHub link target (default `https://github.com/Jimsnote/dofupdf`)

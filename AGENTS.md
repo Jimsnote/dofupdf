@@ -91,8 +91,8 @@ src/
 
 **Worker 侧（`src/worker/index.js`，配 Cloudflare Dashboard 或本地 `.dev.vars`）**：
 
-- `PAYHIP_PRODUCT_SECRET`：Pro 许可验证的 Payhip 产品密钥（生产必配；未配时 license API 不工作）
-- `ALLOW_DEMO`：DEMO 模式显式开关（批次 B 起 fail-closed）。仅在本地开发跑 DEMO E2E 时于 `.dev.vars` 配 `ALLOW_DEMO=true`（配合 `npx wrangler dev`）；**生产绝不配置**。生产模式下（secret 在场）该开关无效果。无 secret 且无 ALLOW_DEMO 时，`/api/license/*` 三端点一律返回 503 `license_unavailable`
+- Dodo Payments 的 activate / validate / deactivate 是公开端点，Worker 直接代理 `https://live.dodopayments.com/licenses/*`；**生产不需要 API Key 或其他 Secret**。服务端固定校验正式产品 ID，KV 仅保存哈希后的 key、Dodo instance ID 与 product ID
+- `ALLOW_DEMO`：DEMO 模式显式开关。仅在本地开发跑 DEMO E2E 时于 `.dev.vars` 配 `ALLOW_DEMO=true`（配合 `npx wrangler dev`）；**生产绝不配置**。未开启时 DEMO key 不会进入 DEMO 模式
 
 > 2026-08：Microsoft Clarity 已移除（代码、CSP、隐私文案同步清理），站点只保留 CF 无 Cookie 汇总统计，走"零行为追踪"叙事。
 
